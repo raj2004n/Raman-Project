@@ -47,72 +47,51 @@ plot it myself
 
 lets try:
 """
-path = Path("FullCavity_20x20_2umsteps") # store as Path object for easier manipulation
+path = Path("~/Code/Data_SH/FullCavity_20x20_2umsteps").expanduser() # store as Path object for easier manipulation
 files = list(path.glob('*.txt')) # extract .txt files and store as list
 
-raman_shifts = pd.read_csv(
-    files[0],
-    sep='\t',
-    names=['raman_shift'],
-    header=None,
-    usecols=[0]
-    )['raman_shift'].tolist()
-
-file = files[0] # only take the first file, as we would handle in a loop
-
-intensity_arr = pd.read_csv(
-        file, 
-        sep='\t', 
-        names=['intensity'], 
+if not files:
+    print("No .txt files found in that directory.")
+else:
+    raman_shifts = pd.read_csv(
+        files[0],
+        sep='\t',
+        names=['raman_shift'],
         header=None,
-        usecols=[1],
-        )['intensity'].tolist()
+        usecols=[0]
+        )['raman_shift'].tolist()
 
-#plt.plot(raman_shifts, intensity_arr)
-#plt.show()
-# make into rp spectra object
-raman_spectra = rp.Spectrum(intensity_arr, raman_shifts)
-# plot
-rp.plot.spectra(raman_spectra)
-rp.plot.show()
-# denoise
-# yo i have to choose this? ok then
-savgol = rp.preprocessing.denoise.SavGol(window_length=7, polyorder=3)
-# apply denoise
-raman_spectra = savgol.apply(raman_spectra)
-rp.plot.spectra(raman_spectra)
-rp.plot.show()
-# baseline correction
-baseline_corrector = rp.preprocessing.baseline.IARPLS()
-# apply baseline correction
-raman_spectra = baseline_corrector.apply(raman_spectra)
-rp.plot.spectra(raman_spectra)
-rp.plot.show()
-# normalisation
-vector_normaliser = rp.preprocessing.normalise.Vector()
-# apply normalisation
-raman_spectra = vector_normaliser.apply(raman_spectra)
-rp.plot.spectra(raman_spectra)
-rp.plot.show()
+    file = files[0] # only take the first file, as we would handle in a loop
 
+    intensity_arr = pd.read_csv(
+            file, 
+            sep='\t', 
+            names=['intensity'], 
+            header=None,
+            usecols=[1],
+            )['intensity'].tolist()
 
-# extract data
-intensity_arr_new = raman_spectra.spectral_data
-raman_shifts_new = raman_spectra.spectral_axis # same as before
-plt.plot(raman_shifts, intensity_arr_new)
-plt.show()
+    
 
-plt.plot(raman_shifts_new, intensity_arr_new)
-plt.show()
-# compare original to new
+    # make into rp spectra object
+    raman_spectra = rp.Spectrum(intensity_arr, raman_shifts)
 
-"""
+    # denoise 
+    savgol = rp.preprocessing.denoise.SavGol(window_length=7, polyorder=3)
+    gaussian = rp.preprocessing.denoise.Gaussian()
 
-ram = Raman_Data("FullCavity_20x20_2umsteps", 20, 20)
-integrals = ram.get_integrals()
+    # baseline correction methods
+    asla = rp.preprocessing.baseline.IARPLS()
+    iasls = rp.preprocessing.baseline.IASLS()
+    airpls = rp.preprocessing.baseline.AIRPLS()
+    drpls = rp.preprocessing.baseline.DRPLS()
+    iarpls = rp.preprocessing.baseline.IARPLS()
+    aspls = rp.preprocessing.baseline.ASPLS()
 
-fig, ax = plt.subplots(figsize=(8,8))
-map = ax.imshow(integrals)
-fig.colorbar(map, ax=ax)   
-"""
-#plt.show()
+    baseline_corrections = [asla, iasls, airpls, drpls, iarpls, aspls]
+
+    for baseline_correction in baseline_corrections:
+        spectra = baseline_correction.apply(raman_spectra)
+        rp.plot.spectra(spectra, title=f"{baseline_correction}")
+        rp.plot.show()
+

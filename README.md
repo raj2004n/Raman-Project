@@ -17,4 +17,4 @@ Visualise the Ising model using Glauber of Kawasaki dynamics.
 * `-m`, `--mode`: Choose viewing mode: 'sliding_spectra' or 'whole_spectra'.
 
 **Example Command:**
-python3 plot_raman.py -p ~/Code/Data_SH/FullCavity_20x20_2umsteps -x 20 -y 20 -m sliding_spectra
+python3 plot_raman.py -p ~/Code/Data_SH/FullCavity_20x20_2umsteps -x 20 -y 20 -m whole_spectra

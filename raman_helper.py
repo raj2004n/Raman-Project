@@ -93,7 +93,7 @@ class Raman_Data:
         rp.plot.show()
         return
 
-    def get_integrals(self):
+    def get_integrals(self, slices=100):
         path = Path(self.path) # store as Path object for easier manipulation
         files = list(path.glob('*.txt')) # extract .txt files and store as list
 
@@ -118,14 +118,15 @@ class Raman_Data:
         # list to hold area under curve
         integrals = np.zeros(shape=(self.x, self.y))
         intensity_slice = np.zeros(shape=(self.x, self.y, len(raman_shifts))) 
+        integral_slice = np.zeros(shape=(self.x, self.y, len(raman_shifts) // slices)) 
 
         # position of grid 1 at bottom-left corner
         cur_x, cur_y =  self.x - 1, 0
         step = 1 # intially steps forward (right)
 
         # define methods
-        savgol = rp.preprocessing.denoise.SavGol(window_length=7, polyorder=3)
         baseline_corrector = rp.preprocessing.baseline.IARPLS()
+        savgol = rp.preprocessing.denoise.SavGol(window_length=7, polyorder=3)
         vector_normaliser = rp.preprocessing.normalise.Vector()
   
         for file in files:
@@ -138,14 +139,22 @@ class Raman_Data:
             raman_spectra = rp.Spectrum(intensity_arr, raman_shifts)
             
             # apply
-            raman_spectra = savgol.apply(raman_spectra)
             raman_spectra = baseline_corrector.apply(raman_spectra)
+            raman_spectra = savgol.apply(raman_spectra)
             #raman_spectra = vector_normaliser.apply(raman_spectra)
 
-            # extract the modifed data
+            # extract the modifed data (for that pixel)
             intensity_arr = raman_spectra.spectral_data
             
-            # get area under curve
+            #TODO: Use their cropper
+            i = 0
+            while i < len(raman_shifts) // slices:
+                # eg. integral from index 0 -> 9
+                integral = simpson(intensity_arr[i:i+slices], raman_shifts[i:i+slices])
+                integral_slice[cur_x, cur_y, i % slices] = integral
+                i += 10
+
+            # get area under whole curve
             integral = simpson(intensity_arr, raman_shifts)
 
             # assign integral to its grid position
@@ -162,4 +171,4 @@ class Raman_Data:
             else: # not on boundary
                 cur_y += step # step 
 
-        return intensity_slice, integrals, raman_shifts
+        return intensity_slice, integral_slice, integrals, raman_shifts
