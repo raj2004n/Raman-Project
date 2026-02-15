@@ -24,7 +24,7 @@ def parse_arguments():
         "--x",
         type=int,
         required=True,
-        help=""
+        help="Number of grid points in x axis."
         )
     
     parser.add_argument(
@@ -32,16 +32,16 @@ def parse_arguments():
         "--y",
         type=int,
         required=True,
-        help=""
+        help="Number of grid points in y axis."
         )
     
     parser.add_argument(
         "-m",
         "--mode",
         type=str,
-        choices=['sliding_spectra', 'whole_spectra'],
+        choices=['sliding_spectra', 'whole_spectra', 'other'],
         required=True,
-        help=""
+        help="Choose mode: 'sliding_spectra' or 'whole_spectra. Former shows the area under regions of spectra. Latter shows the area under the wholle curve."
         )
     
     parser.add_argument(
@@ -61,15 +61,27 @@ def plot(path, x, y, mode, slices):
     # integral slice includes area under entire specra in chunks for each pixel
     # whole_integrals is the total area under the curve
     # raman shifts is the corresponding x axis to both
-    intensiy_slice, integral_slice, whole_integrals, raman_shifts = raman_visual.get_integrals(slices)
 
     if mode == 'whole_spectra':
-        fig, ax = plt.subplots(figsize=(12,12))
-        im = ax.imshow(whole_integrals)
+        integrals, raman_shifts = raman_visual.get_integrals()
+        fig, ax = plt.subplots(figsize=(10,10))
+        im = ax.imshow(integrals)
         fig.colorbar(im, ax=ax)   
         plt.show()
+    elif mode == "other":
+        print('do this')
+        # choose a pixel to plot
+        path = Path("~/Code/Data_SH/FullCavity_20x20_2umsteps") # store as Path object for easier manipulation
+        files = list(path.glob('*.txt')) # extract .txt files and store as list
+
+        # read in raman_shifts and store as list (only from one file, since same in all files)
+        raman_shifts = pd.read_csv(files[0], sep='\t', names=['raman_shift'], header=None, usecols=[0])['raman_shift'].tolist()
+        intensity_arr = pd.read_csv(files[0], sep='\t', names=['intensity'], header=None, usecols=[1],)['intensity'].tolist()
+        
+        
     elif mode == 'sliding_spectra':
-        """
+        integral_slice, intensity_slice, raman_shifts = raman_visual.get_integral_slices(slices)
+
         # Define initial parameters
         indices = np.arange(len(raman_shifts) // slices)
         index = 0
@@ -105,7 +117,7 @@ def plot(path, x, y, mode, slices):
 
         # The function to be called anytime a slider's value changes
         def update(val):
-            im.set_array(intensiy_slice[:, :, raman_slider.val])
+            im.set_array(intensity_slice[:, :, raman_slider.val])
             raman_slider.valtext.set_text(raman_slice[val])
             fig.canvas.draw_idle()
 
@@ -122,6 +134,7 @@ def plot(path, x, y, mode, slices):
         button.on_clicked(reset)
 
         plt.show()
+        
         
         """
         indices = np.arange(len(raman_shifts) // slices)
@@ -171,7 +184,7 @@ def plot(path, x, y, mode, slices):
         button.on_clicked(reset)
 
         plt.show()
-
+        """
 if __name__ == "__main__":
     args = parse_arguments()
     plot(
