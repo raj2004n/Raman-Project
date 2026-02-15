@@ -197,3 +197,43 @@ class Raman_Data:
                 cur_y += step # step 
         # return slice
         return rp.SpectralContainer(spectral_data, spectral_axis)
+    
+    def get_slice500(self):
+        # get files
+        files = self.get_files()
+
+        # read in raman_shifts and store as list (only from one file, since same in all files)
+        raman_shifts = pd.read_csv(files[0], sep='\t', names=['raman_shift'], header=None, usecols=[0])['raman_shift'].tolist()
+
+        spectral_data = np.zeros(shape=(self.x, self.y, 500)) 
+        spectral_axis =  np.array(raman_shifts[0:500])
+        
+        # position of grid 1 at bottom-left corner
+        cur_x, cur_y =  self.x - 1, 0
+        step = 1 # intially steps forward (right)
+  
+        for file in files:
+            # read the intensity column, store as list
+            intensity_arr = pd.read_csv(file, sep='\t', names=['intensity'], header=None,usecols=[1],)['intensity'].tolist()
+            intensity_arr = intensity_arr[0:500]
+            # make raman spectra object to use rp methods
+            raman_spectra = rp.Spectrum(intensity_arr, spectral_axis)
+            raman_spectra = self.apply_preprocessing(raman_spectra)
+            
+            # extract the modifed data (for that pixel)
+            intensity_arr = raman_spectra.spectral_data
+            
+            # assign integral to its grid position
+            spectral_data[cur_x, cur_y] = intensity_arr
+
+            # grid assigning logic
+            if cur_y == self.y - 1 and step != -1: # on right boundary
+                cur_x -= 1 # step up
+                step *= -1 # flip step direction
+            elif cur_y == 0 and step != 1: # on left boundary
+                cur_x -= 1 # step up
+                step *= -1 # flip step direction
+            else: # not on boundary
+                cur_y += step # step 
+        # return slice
+        return rp.SpectralContainer(spectral_data, spectral_axis)
