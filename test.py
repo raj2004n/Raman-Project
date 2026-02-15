@@ -75,7 +75,8 @@ else:
 
     # make into rp spectra object
     raman_spectra = rp.Spectrum(intensity_arr, raman_shifts)
-
+    rp.plot.spectra(raman_spectra, title="Raw")
+    plt.show()
     # denoise 
     savgol = rp.preprocessing.denoise.SavGol(window_length=7, polyorder=3)
     gaussian = rp.preprocessing.denoise.Gaussian()
@@ -92,5 +93,5 @@ else:
 
     for baseline_correction in baseline_corrections:
         spectra = baseline_correction.apply(raman_spectra)
-        rp.plot.spectra(spectra, title=f"{baseline_correction}")
+        rp.plot.spectra(spectra, title=f"Baseline Correction Used: {baseline_correction}")
         rp.plot.show()

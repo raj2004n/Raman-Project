@@ -97,13 +97,19 @@ class Raman_Data:
         
         div = len(raman_shifts) // regions
         area_by_region = np.zeros(shape=(self.x, self.y, regions))
-        # store [region, ["start to end", raman_shifts_in_that_range]], convinient for plotting pixel spectra
-        shift_by_region = []
+
+        # key: pixel, region. value: spectra of that region for that pixel
+        spectra_by_region = {}
+        original_spectra_by_region = {}
+        
+        # key: region. value: spectra of that region
+        shift_by_region = {}
 
         # store raman shift by region
         i, j, region = 0, div - 1, 0
+        #TODO: fix this, the last term not included when i:j
         while i < len(raman_shifts):
-            shift_by_region.append([region, [f"{raman_shifts[i]} - {raman_shifts[j]}", raman_shifts[i:j]]])
+            shift_by_region[region] = [f"{raman_shifts[i]} - {raman_shifts[j]}", raman_shifts[i:j]]
             region += 1
             i += div
             j += div
@@ -118,7 +124,7 @@ class Raman_Data:
         # position of grid 1 at bottom-left corner
         cur_x, cur_y =  self.x - 1, 0
         step = 1 # intially steps forward (right)
-
+        pixel = 1
         for file in files:
             # read the intensity column and store as list
             intensity_arr = pd.read_csv(file, sep='\t', names=['intensity'], header=None, usecols=[1],)['intensity'].tolist()
@@ -127,16 +133,21 @@ class Raman_Data:
             raman_spectra = rp.Spectrum(intensity_arr, raman_shifts)
             raman_spectra = pipeline.apply(raman_spectra)
 
-            preprocessed_data = raman_spectra.spectral_data
+            # process data
+            processed_data = raman_spectra.spectral_data
 
             # pointers for splitting
             i, j, region = 0, div - 1, 0
 
-            # store area by regions
+            # store data by regions
             while i < len(raman_shifts):
                 # Note that does eg. 0 133 and 134 267, so relation between 133 and 134 are is missed
-                area = np.trapezoid(preprocessed_data[i:j], raman_shifts[i:j])
+                area = np.trapezoid(processed_data[i:j], raman_shifts[i:j])
+                # store area by region
                 area_by_region[cur_x, cur_y, region] = area
+                # store spectras
+                spectra_by_region[pixel, region] = processed_data[i:j]
+                original_spectra_by_region[pixel, region] = intensity_arr[i:j] # store original for comparison
                 # update pointers
                 region += 1
                 i += div
@@ -151,8 +162,8 @@ class Raman_Data:
                 step *= -1 # flip step direction
             else: # not on boundary
                 cur_y += step # step 
-        
-        return area_by_region, np.array(shift_by_region)
+            pixel += 1
+        return area_by_region, shift_by_region, spectra_by_region, original_spectra_by_region
 
     def get_integral_slices(self, slices):
         # get files
