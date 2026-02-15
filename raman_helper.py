@@ -39,21 +39,7 @@ class Raman_Data:
 
         return files
     
-    def apply_preprocessing(self, spectra):
-
-        preprocessing_pipeline = rp.preprocessing.Pipeline([
-            #TODO: the cropper may want to take the region i am considering
-            #TODO cropping does not work because the range of the raman shifts for when initialisign spectral image need to be the same, and my spectra range is different
-            #rp.preprocessing.misc.Cropper(region=(500, 1800)),
-            rp.preprocessing.despike.WhitakerHayes(),
-            rp.preprocessing.denoise.SavGol(window_length=7, polyorder=3),
-            rp.preprocessing.baseline.ASLS(),
-            rp.preprocessing.normalise.MinMax(pixelwise=False),
-        ])
-
-        return preprocessing_pipeline.apply(spectra)
-   
-    def get_integrals(self):
+    def get_area(self, pipeline):
         
         # get files
         files = self.get_files()
@@ -63,6 +49,13 @@ class Raman_Data:
         
         # list to hold area under curve
         integrals = np.zeros(shape=(self.x, self.y))
+
+        if pipeline == 1:
+            pipeline = rp.preprocessing.protocols.georgiev2023_P1(normalisation_pixelwise=True, fingerprint=False)
+        elif pipeline == 2:
+            pipeline = rp.preprocessing.protocols.georgiev2023_P2(normalisation_pixelwise=True, fingerprint=False)
+        elif pipeline == 3:
+            pipeline = rp.preprocessing.protocols.georgiev2023_P3(normalisation_pixelwise=True, fingerprint=False)
 
         # position of grid 1 at bottom-left corner
         cur_x, cur_y =  self.x - 1, 0
@@ -74,10 +67,10 @@ class Raman_Data:
             
             # make raman spectra object and preprocess spectra
             raman_spectra = rp.Spectrum(intensity_arr, raman_shifts)
-            raman_spectra = self.apply_preprocessing(raman_spectra)
+            raman_spectra = pipeline.apply(raman_spectra)
 
             # get area under whole curve
-            integral = simpson(intensity_arr, raman_shifts)
+            integral = np.trapezoid(intensity_arr, raman_shifts)
 
             # assign integral to its grid position
             integrals[cur_x, cur_y] = integral
@@ -94,16 +87,79 @@ class Raman_Data:
 
         return integrals, raman_shifts
     
+    def get_area_regions(self, pipeline, regions):
+        
+        # get files
+        files = self.get_files()
+
+        # read in raman_shifts and store as list (only from one file, since same in all files)
+        raman_shifts = pd.read_csv(files[0], sep='\t', names=['raman_shift'], header=None, usecols=[0])['raman_shift'].tolist()
+        
+        div = len(raman_shifts) // regions
+        area_by_region = np.zeros(shape=(self.x, self.y, regions))
+        # store [region, ["start to end", raman_shifts_in_that_range]], convinient for plotting pixel spectra
+        shift_by_region = []
+
+        # store raman shift by region
+        i, j, region = 0, div - 1, 0
+        while i < len(raman_shifts):
+            shift_by_region.append([region, [f"{raman_shifts[i]} - {raman_shifts[j]}", raman_shifts[i:j]]])
+            region += 1
+            i += div
+            j += div
+        
+        if pipeline == 1:
+            pipeline = rp.preprocessing.protocols.georgiev2023_P1(normalisation_pixelwise=True, fingerprint=False)
+        elif pipeline == 2:
+            pipeline = rp.preprocessing.protocols.georgiev2023_P2(normalisation_pixelwise=True, fingerprint=False)
+        elif pipeline == 3:
+            pipeline = rp.preprocessing.protocols.georgiev2023_P3(normalisation_pixelwise=True, fingerprint=False)
+
+        # position of grid 1 at bottom-left corner
+        cur_x, cur_y =  self.x - 1, 0
+        step = 1 # intially steps forward (right)
+
+        for file in files:
+            # read the intensity column and store as list
+            intensity_arr = pd.read_csv(file, sep='\t', names=['intensity'], header=None, usecols=[1],)['intensity'].tolist()
+            
+            # make raman spectra object and preprocess spectra
+            raman_spectra = rp.Spectrum(intensity_arr, raman_shifts)
+            raman_spectra = pipeline.apply(raman_spectra)
+
+            preprocessed_data = raman_spectra.spectral_data
+
+            # pointers for splitting
+            i, j, region = 0, div - 1, 0
+
+            # store area by regions
+            while i < len(raman_shifts):
+                # Note that does eg. 0 133 and 134 267, so relation between 133 and 134 are is missed
+                area = np.trapezoid(preprocessed_data[i:j], raman_shifts[i:j])
+                area_by_region[cur_x, cur_y, region] = area
+                # update pointers
+                region += 1
+                i += div
+                j += div
+
+            # grid stepping logic
+            if cur_y == self.y - 1 and step != -1: # on right boundary
+                cur_x -= 1 # step up
+                step *= -1 # flip step direction
+            elif cur_y == 0 and step != 1: # on left boundary
+                cur_x -= 1 # step up
+                step *= -1 # flip step direction
+            else: # not on boundary
+                cur_y += step # step 
+        
+        return area_by_region, np.array(shift_by_region)
+
     def get_integral_slices(self, slices):
         # get files
         files = self.get_files()
 
         # read in raman_shifts and store as list (only from one file, since same in all files)
         raman_shifts = pd.read_csv(files[0], sep='\t', names=['raman_shift'], header=None, usecols=[0])['raman_shift'].tolist()
-
-        # intensities, raman shifts (might not need this, depends on future applications)
-        #spectral_data = np.zeros(shape=(self.x, self.y, len(raman_shifts))) # matrix of x, y, each element holding a spectra
-        #spectral_axis = np.array(raman_shifts)
 
         # list to hold area under curve
         intensity_slice = np.zeros(shape=(self.x, self.y, len(raman_shifts))) 
@@ -116,7 +172,6 @@ class Raman_Data:
         # define methods
         baseline_corrector = rp.preprocessing.baseline.IARPLS()
         savgol = rp.preprocessing.denoise.SavGol(window_length=7, polyorder=3)
-        vector_normaliser = rp.preprocessing.normalise.Vector()
   
         for file in files:
             # read the intensity column, store as list
@@ -128,12 +183,10 @@ class Raman_Data:
             # apply
             raman_spectra = baseline_corrector.apply(raman_spectra)
             raman_spectra = savgol.apply(raman_spectra)
-            #raman_spectra = vector_normaliser.apply(raman_spectra)
 
             # extract the modifed data (for that pixel)
             intensity_arr = raman_spectra.spectral_data
             
-            #TODO: Use their cropper
             i = 0
             while i < len(raman_shifts) // slices:
                 # eg. integral from index 0 -> 9
@@ -158,12 +211,14 @@ class Raman_Data:
 
         return integral_slice, intensity_slice, raman_shifts
     
-    def get_slice(self):
+    def get_all_slice(self):
+        #TODO: use flat? use mean?
         # get files
         files = self.get_files()
 
         # read in raman_shifts and store as list (only from one file, since same in all files)
         raman_shifts = pd.read_csv(files[0], sep='\t', names=['raman_shift'], header=None, usecols=[0])['raman_shift'].tolist()
+        raman_slices = []
 
         spectral_data = np.zeros(shape=(self.x, self.y, len(raman_shifts))) 
         spectral_axis = np.array(raman_shifts)
@@ -195,8 +250,12 @@ class Raman_Data:
                 step *= -1 # flip step direction
             else: # not on boundary
                 cur_y += step # step 
-        # return slice
-        return rp.SpectralContainer(spectral_data, spectral_axis)
+        
+        # store slice
+        raman_slices.append(rp.SpectralContainer(spectral_data, spectral_axis))
+
+        # return all slices and raman_shift
+        return raman_slices, spectral_axis
     
     def get_slice500(self):
         # get files
@@ -237,3 +296,47 @@ class Raman_Data:
                 cur_y += step # step 
         # return slice
         return rp.SpectralContainer(spectral_data, spectral_axis)
+    
+    def get_slice_pipeline(self, pipeline):
+        # get files
+        files = self.get_files()
+
+        # read in raman_shifts and store as list (only from one file, since same in all files)
+        raman_shifts = pd.read_csv(files[0], sep='\t', names=['raman_shift'], header=None, usecols=[0])['raman_shift'].tolist()
+
+        spectral_data = np.zeros(shape=(self.x, self.y, len(raman_shifts))) 
+        spectral_axis =  np.array(raman_shifts)
+        
+        # position of grid 1 at bottom-left corner
+        cur_x, cur_y =  self.x - 1, 0
+        step = 1 # intially steps forward (right)
+  
+        for file in files:
+            # read the intensity column, store as list
+            intensity_arr = pd.read_csv(file, sep='\t', names=['intensity'], header=None,usecols=[1],)['intensity'].tolist()
+            
+            # assign integral to its grid position
+            spectral_data[cur_x, cur_y] = intensity_arr
+
+            # grid assigning logic
+            if cur_y == self.y - 1 and step != -1: # on right boundary
+                cur_x -= 1 # step up
+                step *= -1 # flip step direction
+            elif cur_y == 0 and step != 1: # on left boundary
+                cur_x -= 1 # step up
+                step *= -1 # flip step direction
+            else: # not on boundary
+                cur_y += step # step 
+
+        if pipeline == 1:
+            pipeline = rp.preprocessing.protocols.georgiev2023_P1(normalisation_pixelwise=True, fingerprint=False)
+        elif pipeline == 2:
+            pipeline = rp.preprocessing.protocols.georgiev2023_P2(normalisation_pixelwise=True, fingerprint=False)
+        elif pipeline == 3:
+            pipeline = rp.preprocessing.protocols.georgiev2023_P3(normalisation_pixelwise=True, fingerprint=False)
+        
+
+        raman_slice = rp.SpectralContainer(spectral_data, spectral_axis)
+        raman_slice = pipeline.apply(raman_slice)
+        return raman_slice
+    

@@ -63,7 +63,7 @@ def plot(path, x, y, mode, slices):
     # raman shifts is the corresponding x axis to both
 
     if mode == 'whole_spectra':
-        integrals, raman_shifts = raman_visual.get_integrals()
+        integrals, raman_shifts = raman_visual.get_area()
         fig, ax = plt.subplots(figsize=(10,10))
         im = ax.imshow(integrals)
         fig.colorbar(im, ax=ax)   

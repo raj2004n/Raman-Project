@@ -94,4 +94,3 @@ else:
         spectra = baseline_correction.apply(raman_spectra)
         rp.plot.spectra(spectra, title=f"{baseline_correction}")
         rp.plot.show()
-
