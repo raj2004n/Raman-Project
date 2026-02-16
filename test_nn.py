@@ -111,7 +111,6 @@ class ResUNet(nn.Module):
 
         return out
 
-
 SEED = 19
 
 matplotlib.rc_file_defaults()
@@ -123,7 +122,7 @@ plt.rc('legend', fontsize=16)    # legend fontsize
 plt.rc('figure', titlesize=24)  # fontsize of the figure title
 
 METRICS = ['MSE', 'SAD', 'SID']
-#colors = list(plt.cm.get_cmap()(np.linspace(0, 1, 4)))
+colors = list(plt.cm.get_cmap()(np.linspace(0, 1, 4)))
 
 # Load pretrained model
 net = ResUNet(3, False).float()
@@ -178,11 +177,9 @@ def add_normal_noise(spectrum, std=0.15):
 path = Path("~/Code/Data_SH/FullCavity_20x20_2umsteps").expanduser()
 
 raman_visual = Raman_Data(path, 20, 20)
-raman_slice = raman_visual.get_slice500()
+raman_slice = raman_visual.get_slice500(3)
 
 raman_slice = raman_slice.flat
-
-
 
 np.random.seed(SEED)
 
@@ -201,3 +198,48 @@ ax = rp.plot.spectra(results, plot_type='single', ylabel='Normalised intensity',
 ax.legend(labels)
 
 plt.show()
+
+def show_results(nn_results_df, baseline_results_dfs):
+    for metric in METRICS:
+        plt.figure(figsize=(4, 6), tight_layout=True)
+
+        bar_kwargs = {'linewidth': 2, 'zorder': 5}
+        err_kwargs = {'zorder': 0, 'fmt': 'none', 'linewidth': 2, 'ecolor': 'k', 'capsize': 5}
+
+        combined_df = pd.concat([nn_results_df[metric], *[df[metric] for df in baseline_results_dfs.values()]], axis=1,
+                                ignore_index=True)
+        combined_df.columns = ['NN'] + list(baseline_results_dfs.keys())
+
+        # Plot
+        means = combined_df.mean()
+        stds = combined_df.std()
+        labels = combined_df.columns
+
+        sg_cmap = LinearSegmentedColormap.from_list('', [colors[1], [1, 1, 1, 1]])
+        colors_to_use = list(sg_cmap(np.linspace(0, 1, len(baseliners.keys()) + 2)))[:-2]
+
+        ax = plt.gca()
+        ax.bar(labels, means, color=[colors[3]] + colors_to_use[::-1], **bar_kwargs)
+        ax.errorbar(labels, means, yerr=[[0] * len(stds), stds], **err_kwargs)
+
+        # Significance tests
+        combined_df_ = combined_df.melt(var_name='Denoiser', value_name=metric)
+        box_pairs = [('NN', base) for base in baseliners.keys()]
+        annotator = Annotator(ax, box_pairs, data=combined_df_, x="Denoiser", y=metric)
+        annotator.configure(test='Wilcoxon', text_format='star', loc='inside', comparisons_correction='fdr_bh')
+        annotator.apply_and_annotate()
+
+        ax.set_title(metric)
+        plt.xticks(rotation=45, ha='right')
+        plt.show()
+
+transfer_baseline_results_dfs = {k: pd.DataFrame(columns=METRICS) for k in baseliners.keys()}
+transfer_nn_results_df = pd.DataFrame(columns=METRICS)
+for spectrum in raman_slice:
+    spectrum_with_noise = add_normal_noise(spectrum)
+    transfer_nn_results_df = pd.concat([transfer_nn_results_df, pd.DataFrame([get_results(spectrum_with_noise, spectrum, nn_denoiser)[1]])], ignore_index=True)
+
+    for name, denoiser in baseliners.items():
+        transfer_baseline_results_dfs[name] = pd.concat([transfer_baseline_results_dfs[name], pd.DataFrame([get_results(spectrum_with_noise, spectrum, denoiser)[1]])], ignore_index=True)
+
+show_results(transfer_nn_results_df, transfer_baseline_results_dfs)
