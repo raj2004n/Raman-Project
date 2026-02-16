@@ -1,11 +1,11 @@
 from raman_helper import *
 from matplotlib.widgets import Slider, TextBox
 
-#path = Path("~/Code/Data_SH/FullCavity_20x20_2umsteps").expanduser()
-#raman_data = Raman_Data(path, 20, 20)
+path = Path("~/Code/Data_SH/FullCavity_20x20_2umsteps").expanduser()
+raman_data = Raman_Data(path, 20, 20)
 
-path = Path("~/Code/Data_SH/dataTwo").expanduser()
-raman_data = Raman_Data(path, 30, 35)
+#path = Path("~/Code/Data_SH/dataTwo").expanduser()
+#raman_data = Raman_Data(path, 30, 35)
 
 area_by_region, shift_by_region, spectra_by_region, original_spectra_by_region = raman_data.get_area_regions(pipeline=2, regions=20)
 
