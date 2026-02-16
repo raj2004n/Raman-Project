@@ -87,8 +87,37 @@ class Raman_Data:
 
         return integrals, raman_shifts
     
-    def get_area_regions(self, pipeline, regions):
+    def preprocess(self):
         
+        # despike suitable if using ccd
+        return
+
+    def apply_preprocessing(self, cell_layer):
+        # this pipeline was designed for cell / tissue maps
+        preprocessing_pipeline = rp.preprocessing.Pipeline([
+            #rp.preprocessing.misc.Cropper(region=(500, 1800)),
+            rp.preprocessing.despike.WhitakerHayes(),
+            rp.preprocessing.denoise.SavGol(window_length=7, polyorder=3),
+            rp.preprocessing.baseline.ASLS(),
+            rp.preprocessing.normalise.MinMax(pixelwise=False),
+        ])
+        return preprocessing_pipeline.apply(cell_layer) 
+
+    def get_area_regions(self, pipeline, regions):
+        """
+        Function to find the area under the curve by regions.
+        
+        Returns:
+        area_by_region - integral of region, stored as: list, shape=(x, y, len(spectra)) 
+        shift_by_region - raman shift stored as dictionary: {region : spectra of region} (same for all pixels)
+        spectra_by_region - preprocessed spectra of region, stored as: { pixel, region : spectra of pixel and region}
+        original_spectra_by_region - original spectra of region, stored as: { pixel, region : spectra of pixel and region}
+
+        original_spectra_by_region was added to compare with preprocessed data
+
+        :param pipeline: pipeline to use. Currently using predefined pipelines from RamanSPy library.
+        :param regions: Number of regions to split the spectra into.
+        """
         # get files
         files = self.get_files()
 
@@ -165,63 +194,6 @@ class Raman_Data:
             pixel += 1
         return area_by_region, shift_by_region, spectra_by_region, original_spectra_by_region
 
-    def get_integral_slices(self, slices):
-        # get files
-        files = self.get_files()
-
-        # read in raman_shifts and store as list (only from one file, since same in all files)
-        raman_shifts = pd.read_csv(files[0], sep='\t', names=['raman_shift'], header=None, usecols=[0])['raman_shift'].tolist()
-
-        # list to hold area under curve
-        intensity_slice = np.zeros(shape=(self.x, self.y, len(raman_shifts))) 
-        integral_slice = np.zeros(shape=(self.x, self.y, len(raman_shifts) // slices)) 
-
-        # position of grid 1 at bottom-left corner
-        cur_x, cur_y =  self.x - 1, 0
-        step = 1 # intially steps forward (right)
-
-        # define methods
-        baseline_corrector = rp.preprocessing.baseline.IARPLS()
-        savgol = rp.preprocessing.denoise.SavGol(window_length=7, polyorder=3)
-  
-        for file in files:
-            # read the intensity column, store as list
-            intensity_arr = pd.read_csv(file, sep='\t', names=['intensity'], header=None,usecols=[1],)['intensity'].tolist()
-            
-            # make raman spectra object to use rp methods
-            raman_spectra = rp.Spectrum(intensity_arr, raman_shifts)
-            
-            # apply
-            raman_spectra = baseline_corrector.apply(raman_spectra)
-            raman_spectra = savgol.apply(raman_spectra)
-
-            # extract the modifed data (for that pixel)
-            intensity_arr = raman_spectra.spectral_data
-            
-            i = 0
-            while i < len(raman_shifts) // slices:
-                # eg. integral from index 0 -> 9
-                integral = simpson(intensity_arr[i:i+slices], raman_shifts[i:i+slices])
-                integral_slice[cur_x, cur_y, i % slices] = integral
-                i += 10
-
-            # get area under whole curve
-            integral = simpson(intensity_arr, raman_shifts)
-
-            intensity_slice[cur_x, cur_y] = intensity_arr # assign slice
-
-            # grid assigning logic
-            if cur_y == self.y - 1 and step != -1: # on right boundary
-                cur_x -= 1 # step up
-                step *= -1 # flip step direction
-            elif cur_y == 0 and step != 1: # on left boundary
-                cur_x -= 1 # step up
-                step *= -1 # flip step direction
-            else: # not on boundary
-                cur_y += step # step 
-
-        return integral_slice, intensity_slice, raman_shifts
-    
     def get_all_slice(self):
         #TODO: use flat? use mean?
         # get files

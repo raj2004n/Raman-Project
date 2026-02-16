@@ -80,7 +80,7 @@ def plot(path, x, y, mode, slices):
         
         
     elif mode == 'sliding_spectra':
-        integral_slice, intensity_slice, raman_shifts = raman_visual.get_integral_slices(slices)
+        #integral_slice, intensity_slice, raman_shifts = raman_visual.get_integral_slices(slices)
 
         # Define initial parameters
         indices = np.arange(len(raman_shifts) // slices)

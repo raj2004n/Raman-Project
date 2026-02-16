@@ -6,8 +6,8 @@ from matplotlib.widgets import Button, Slider
 path = Path("~/Code/Data_SH/FullCavity_20x20_2umsteps").expanduser()
 raman_data = Raman_Data(path, 20, 20)
 
-path = Path("~/Code/Data_SH/dataTwo").expanduser()
-raman_data = Raman_Data(path, 30, 35)
+#path = Path("~/Code/Data_SH/dataTwo").expanduser()
+#raman_data = Raman_Data(path, 30, 35)
 
 raman_slice = raman_data.get_slice_pipeline(2)
 
