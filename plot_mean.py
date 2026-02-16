@@ -1,1 +1,0 @@
-#mean by region, instead of area
