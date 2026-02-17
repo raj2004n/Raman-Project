@@ -1,12 +1,11 @@
 from pathlib import Path 
-from scipy.integrate import simpson
-from ai_denoise import *
 import re
 import numpy as np
 import pandas as pd
 import ramanspy as rp
 import matplotlib
 import matplotlib.pyplot as plt
+from scipy.signal import convolve
 
 class Raman_Data:
     def __init__(self, path, x, y):
@@ -189,6 +188,84 @@ class Raman_Data:
             pixel += 1
 
         return area_by_region, shift_by_region, spectra_by_region, original_spectra_by_region
+    
+    def get_area_range(self, pipeline, shift_range):
+        #TODO: the need of step, and how the pixel are stored in the array
+        #Okay, show the whole specctra, and then on that adda on top bar area thing that shows which region we are looking at
+        """
+        Method to find the area under the curve by regions.
+        
+        Returns:
+        area_by_region - integral of region, stored as: list, shape=(x, y, len(spectra)) 
+        shift_by_region - raman shift stored as dictionary: {region : spectra of region} (same for all pixels)
+        spectra_by_region - preprocessed spectra of region, stored as: { pixel, region : spectra of pixel and region}
+        original_spectra_by_region - original spectra of region, stored as: { pixel, region : spectra of pixel and region}
+
+        original_spectra_by_region was added to compare with preprocessed data
+
+        :param pipeline: pipeline to use. Currently using predefined pipelines from RamanSPy library.
+        :param regions: Number of regions to split the spectra into.
+        """
+        # get files
+        files = self.get_files()
+
+        if pipeline == 1:
+            pipeline = rp.preprocessing.protocols.georgiev2023_P1(normalisation_pixelwise=True, fingerprint=False)
+        elif pipeline == 2:
+            pipeline = rp.preprocessing.protocols.georgiev2023_P2(normalisation_pixelwise=True, fingerprint=False)
+        elif pipeline == 3:
+            pipeline = rp.preprocessing.protocols.georgiev2023_P3(normalisation_pixelwise=True, fingerprint=False)
+
+        # read in raman_shifts and store as list (only from one file, since same in all files)
+        raman_shifts = pd.read_csv(files[0], sep='\t', names=['raman_shift'], header=None, usecols=[0])['raman_shift'].tolist()
+        
+        # steps between adjacent numbers and overall mean
+        steps = np.diff(raman_shifts)
+        mean_step = np.mean(steps) # one mean step corresponds to one index step
+        dx = mean_step
+
+        # range is greater than the mean step
+        if shift_range > mean_step:
+            idx_step = int(shift_range // mean_step)
+        else:# range is less than the mean step
+            idx_step = 1 # min step
+
+        kernel = np.ones(idx_step)
+        kernel[0] = 0.5
+        kernel[-1] = 0.5
+        kernel = kernel * dx
+
+        area_by_region = np.zeros(shape=(self.x, self.y, len(raman_shifts) - idx_step + 1))
+        # key: pixel, region. value: spectra of that region for that pixel
+        spectra_by_pixel = np.zeros(shape=(self.x * self.y + 1, len(raman_shifts)))
+        pixel_map = np.zeros(shape=(self.x, self.y), dtype=int)
+        # position of grid 1 at bottom-left corner
+        cur_x, cur_y =  self.x - 1, 0
+        step = 1 # intially steps forward (right)
+        pixel = 1
+
+        for file in files:
+            # read the intensity column and store as list
+            intensity_arr = pd.read_csv(file, sep='\t', names=['intensity'], header=None, usecols=[1],)['intensity'].values
+            raman_spectra = rp.Spectrum(intensity_arr, raman_shifts) # make raman spectra object
+            raman_spectra = pipeline.apply(raman_spectra) # apply preprocessing
+            preprocessed_data = raman_spectra.spectral_data # extract preprocessed data
+            
+            areas = convolve(preprocessed_data, kernel, mode='valid')
+
+            area_by_region[cur_x, cur_y, :] = areas
+
+            # add spectra to pixel
+            spectra_by_pixel[pixel] = preprocessed_data
+
+            pixel_map[cur_x, cur_y] = pixel
+
+            # step
+            cur_x, cur_y, step = self.step_grid(cur_x, cur_y, step)
+            # move to next pixel
+            pixel += 1
+        
+        return area_by_region, spectra_by_pixel, raman_shifts, idx_step, pixel_map
     
     def get_slices(self, pipeline):
         """

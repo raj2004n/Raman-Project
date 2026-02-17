@@ -4,7 +4,6 @@ import matplotlib
 import matplotlib.pyplot as plt
 from matplotlib.colors import LinearSegmentedColormap
 from statannotations.Annotator import Annotator
-from ai_denoise import *
 import ramanspy as rp
 from pathlib import Path 
 from raman_helper import *
@@ -198,7 +197,7 @@ ax = rp.plot.spectra(results, plot_type='single', ylabel='Normalised intensity',
 ax.legend(labels)
 
 plt.show()
-
+"""
 def show_results(nn_results_df, baseline_results_dfs):
     for metric in METRICS:
         plt.figure(figsize=(4, 6), tight_layout=True)
@@ -243,3 +242,4 @@ for spectrum in raman_slice:
         transfer_baseline_results_dfs[name] = pd.concat([transfer_baseline_results_dfs[name], pd.DataFrame([get_results(spectrum_with_noise, spectrum, denoiser)[1]])], ignore_index=True)
 
 show_results(transfer_nn_results_df, transfer_baseline_results_dfs)
+"""
