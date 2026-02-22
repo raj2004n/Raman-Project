@@ -43,7 +43,7 @@ def build_figure(area_by_region, spectra_by_pixel, raman_shift, idx_step):
         gridspec_kw={"height_ratios": [5, 2]}
     )
 
-    # Raman image
+    # raman image
     ax_raman.set_title("Raman Image")
     ax_raman.set_axis_off()
     rp.plot.image(area_by_region[:, :, 0], ax=ax_raman)
@@ -55,7 +55,7 @@ def build_figure(area_by_region, spectra_by_pixel, raman_shift, idx_step):
     cbar = ax_raman.images[0].colorbar
     cbar.set_ticks(np.linspace(v_min, v_max, 5))
 
-    # Spectra plot
+    # spectra plot
     ax_spectra.set_title("Intensity Spectra")
     ax_spectra.set_xlabel(r"Raman Shift cm$^{-1}$")
     ax_spectra.set_ylabel("Intensity")
@@ -69,14 +69,14 @@ def build_figure(area_by_region, spectra_by_pixel, raman_shift, idx_step):
         raman_shift_arr[idx_step], color="red", linestyle="--", alpha=0.7
     )
 
-    # Hover label
+    # hover label
     hover_text = ax_raman.text(
         0.01, 0.99, "", transform=ax_raman.transAxes,
         va="top", ha="left", color="white", fontsize=9,
         bbox=dict(boxstyle="round,pad=0.2", facecolor="black", alpha=0.5),
     )
 
-    # Slider and TextBox axes
+    # slider and textbox axes
     ax_slider = fig.add_axes([0.15, 0.02, 0.5, 0.04])
     ax_box    = fig.add_axes([0.9,  0.02, 0.07, 0.04])
 
@@ -159,7 +159,7 @@ def make_on_click(fig, ax_raman, ax_spectra,
         row   = np.clip(int(event.ydata + 0.5), 0, raman_data.x - 1)
         pixel = pixel_map[row, col]
 
-        text_box.set_val(str(pixel))   # also fires on_submit → update()
+        text_box.set_val(str(pixel)) # also fires on_submit → update()
 
         new_y = spectra_by_pixel[pixel]
         pixel_spectra_line.set_ydata(new_y)

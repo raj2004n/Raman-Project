@@ -91,7 +91,7 @@ class Raman_Data:
             
             # make raman spectra object and preprocess spectra
             raman_spectra = rp.Spectrum(intensity_arr, raman_shifts)
-            raman_spectra = pipeline.apply(raman_spectra)
+            #raman_spectra = pipeline.apply(raman_spectra)
 
             # get area under whole curve
             integral = np.trapezoid(intensity_arr, raman_shifts)
@@ -144,7 +144,7 @@ class Raman_Data:
 
         # store raman shift by region
         i, j, region = 0, div - 1, 0
-        #TODO: fix this, the last term not included when i:j
+       
         while i < len(raman_shifts):
             shift_by_region[region] = [f"{raman_shifts[i]} - {raman_shifts[j]}", raman_shifts[i:j]]
             region += 1
@@ -190,8 +190,6 @@ class Raman_Data:
         return area_by_region, shift_by_region, spectra_by_region, original_spectra_by_region
     
     def get_area_range(self, pipeline, shift_range):
-        #TODO: the need of step, and how the pixel are stored in the array
-        #Okay, show the whole specctra, and then on that adda on top bar area thing that shows which region we are looking at
         """
         Method to find the area under the curve by regions.
         
@@ -239,6 +237,7 @@ class Raman_Data:
         # key: pixel, region. value: spectra of that region for that pixel
         spectra_by_pixel = np.zeros(shape=(self.x * self.y + 1, len(raman_shifts)))
         pixel_map = np.zeros(shape=(self.x, self.y), dtype=int)
+        
         # position of grid 1 at bottom-left corner
         cur_x, cur_y =  self.x - 1, 0
         step = 1 # intially steps forward (right)

@@ -3,10 +3,10 @@ from matplotlib.widgets import TextBox
 import matplotlib.pyplot as plt
 import matplotlib.gridspec as gridspec
 
-path = Path("~/Code/Data_SH/FullCavity_20x20_2umsteps").expanduser()
+path = Path("~/Code/Data_SH/SB008").expanduser()
 raman_data = Raman_Data(path, 20, 20)
 
-preprocessed_slice, raw_slice, raman_shifts = raman_data.get_all_spectra(3)
+preprocessed_slice, raw_slice, raman_shifts = raman_data.get_all_spectra(1)
 
 fig = plt.figure(figsize=(14, 10))
 gs = gridspec.GridSpec(10, 10, figure=fig, hspace=0.6)
