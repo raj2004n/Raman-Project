@@ -4,7 +4,9 @@ from pathlib import Path
 import numpy as np
 import ramanspy as rp
 import matplotlib.pyplot as plt
-from matplotlib.widgets import Slider, TextBox
+from matplotlib.widgets import Slider, TextBox, RangeSlider
+from matplotlib.colors import Normalize
+import matplotlib.cm as cm
 
 from raman_helper import Raman_Data
 
@@ -51,30 +53,48 @@ def load_data(path, x, y, pipeline, rolling_window, spectra_start, spectra_end):
 
     return raman_data, area_by_region, spectra_by_pixel, raman_shift, idx_step, pixel_map
 
-def build_figure(area_by_region, spectra_by_pixel, raman_shift, idx_step):
+def apply_intensity_mask(data_2d, i_min, i_max):
+    
+    cmap = plt.get_cmap("viridis")
+    norm = Normalize(vmin=i_min, vmax=i_max, clip=True)
+    rgba = cmap(norm(data_2d))
+
+    # mask pixels out the intensity range to grey
+    outside = (data_2d < i_min) | (data_2d > i_max)
+    rgba[outside] = np.array([0.5, 0.5, 0.5, 1.0])
+
+    return rgba
+
+def build_figure(area_by_region, spectra_by_pixel, raman_shift, idx_step, pixel_map):
     # ax_image is axis for the image, ax_spectra for the raman shift spectra
     fig, (ax_image, ax_spectra) = plt.subplots(2, 1, figsize=(8, 20), squeeze=True, gridspec_kw={"height_ratios": [5, 2]})
+    # reserve space at the bottom for two slider rows
+    fig.subplots_adjust(bottom=0.10)
 
     # raman image
     ax_image.set_title("Raman Image")
     ax_image.set_axis_off()
-    rp.plot.image(area_by_region[:, :, 0], ax=ax_image)
-    image = ax_image.get_images()[0]
 
     # colour bar max and min
     v_min, v_max = np.min(area_by_region), np.max(area_by_region)
-    image.set_clim(v_min, v_max)
-    cbar = ax_image.images[0].colorbar
-    # just want to see the first and last val of colour bar
-    cbar.set_ticks(np.linspace(v_min, v_max, 2))
+
+    # initialise imshow with RGBA so that set_data(rgba) works correctly later
+    image = ax_image.imshow(apply_intensity_mask(area_by_region[:, :, 0], v_min, v_max), aspect="auto", origin="upper")
+
+    # keep a detached ScalarMappable to drive the colorbar independently of the RGBA image
+    scalar_mappable = cm.ScalarMappable(norm=Normalize(vmin=v_min, vmax=v_max), cmap="viridis")
+    scalar_mappable.set_array([])
+    cbar = fig.colorbar(scalar_mappable, ax=ax_image)
+    cbar.set_ticks(np.linspace(v_min, v_max, 5))
 
     # single spectra plot
     ax_spectra.set_title("Intensity Spectra")
     ax_spectra.set_xlabel(r"Raman Shift cm$^{-1}$")
     ax_spectra.set_ylabel("Intensity")
-    
-    # pixel_spectra is the spectra for that pixel
-    (pixel_specra,) = ax_spectra.plot(raman_shift, spectra_by_pixel[1])
+
+    # pixel_spectra is the spectra for that pixel, use pixel_map[0, 0] to match the initial heatmap view
+    initial_pixel = pixel_map[0, 0]
+    (pixel_specra,) = ax_spectra.plot(raman_shift, spectra_by_pixel[initial_pixel])
 
     # convert to numpy array
     raman_shift_arr = np.array(raman_shift)
@@ -90,8 +110,9 @@ def build_figure(area_by_region, spectra_by_pixel, raman_shift, idx_step):
     )
 
     # slider and textbox axes
-    ax_slider = fig.add_axes([0.15, 0.02, 0.5, 0.04])
-    ax_box = fig.add_axes([0.9, 0.02, 0.07, 0.04])
+    ax_slider = fig.add_axes([0.15, 0.055, 0.55, 0.020])
+    ax_box = fig.add_axes([0.78, 0.055, 0.10, 0.020])
+    ax_intensity_range = fig.add_axes([0.15, 0.020, 0.72, 0.020])
 
     # indices that match the number of area by regions
     indices = np.arange(area_by_region.shape[-1])
@@ -106,7 +127,14 @@ def build_figure(area_by_region, spectra_by_pixel, raman_shift, idx_step):
 
     # initial text box to indicate pixel being viewed in the single spectra plot
     text_box = TextBox(ax_box, "Pixel:", textalignment="center")
-    text_box.set_val("1")
+    text_box.set_val(str(initial_pixel))
+
+    # intensity range slider
+    intensity_range = RangeSlider(
+        ax=ax_intensity_range, label="Intensity",
+        valmin=v_min, valmax=v_max,
+        valinit=(v_min, v_max),
+    )
 
     return (
         fig, ax_image, ax_spectra,
@@ -114,13 +142,15 @@ def build_figure(area_by_region, spectra_by_pixel, raman_shift, idx_step):
         lower_limit_line, upper_limit_line,
         hover_text, spectra_window, text_box,
         raman_shift_arr,
+        intensity_range, cbar, scalar_mappable,
+        v_min, v_max,
     )
 
 def make_update(fig, ax_spectra, image, pixel_specra,
                 lower_limit_line, upper_limit_line,
-                spectra_window, text_box,
+                spectra_window, text_box, intensity_range,
                 area_by_region, spectra_by_pixel,
-                raman_shift_arr, idx_step):
+                raman_shift_arr, idx_step, cbar, scalar_mappable):
 
     def update(_val):
         index = int(spectra_window.val)
@@ -129,7 +159,16 @@ def make_update(fig, ax_spectra, image, pixel_specra,
         except (ValueError, KeyError):
             return
 
-        image.set_data(area_by_region[:, :, index])
+        # current intensity clip range
+        i_min, i_max = intensity_range.val
+
+        # mask data for current slice
+        image.set_data(apply_intensity_mask(area_by_region[:, :, index], i_min, i_max))
+
+        # update cbar ticks
+        scalar_mappable.set_clim(i_min, i_max)
+        cbar.set_ticks(np.linspace(i_min, i_max, 5))
+        cbar.update_normal(scalar_mappable)
 
         new_y = spectra_by_pixel[pixel]
         pixel_specra.set_ydata(new_y)
@@ -140,6 +179,7 @@ def make_update(fig, ax_spectra, image, pixel_specra,
         upper_limit_line.set_xdata([x_end,   x_end])
         spectra_window.valtext.set_text(f"{x_start:.0f}-{x_end:.0f}")
 
+        # set y limits with 10 percent padding on both sides
         ax_spectra.set_ylim(np.min(new_y) * 0.9, np.max(new_y) * 1.1)
         fig.canvas.draw_idle()
 
@@ -193,14 +233,16 @@ def main():
         lower_limit_line, upper_limit_line,
         hover_text, spectra_window, text_box,
         raman_shift_arr,
-    ) = build_figure(area_by_region, spectra_by_pixel, raman_shift, idx_step)
+        intensity_range, cbar, scalar_mappable,
+        v_min, v_max,
+    ) = build_figure(area_by_region, spectra_by_pixel, raman_shift, idx_step, pixel_map)
 
     update = make_update(
         fig, ax_spectra, image, pixel_specra,
         lower_limit_line, upper_limit_line,
-        spectra_window, text_box,
+        spectra_window, text_box, intensity_range,
         area_by_region, spectra_by_pixel,
-        raman_shift_arr, idx_step,
+        raman_shift_arr, idx_step, cbar, scalar_mappable,
     )
     on_hover = make_on_hover(fig, ax_image, hover_text, pixel_map, raman_data)
     on_click = make_on_click(
@@ -212,6 +254,7 @@ def main():
 
     text_box.on_submit(update)
     spectra_window.on_changed(update)
+    intensity_range.on_changed(update)
     fig.canvas.mpl_connect("motion_notify_event", on_hover)
     fig.canvas.mpl_connect("button_press_event", on_click)
 
