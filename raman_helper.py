@@ -237,6 +237,7 @@ class Raman_Data:
             idx_step = int(rolling_window // mean_step)
         else:# range is less than the mean step
             idx_step = 1 # min step
+        
 
         kernel = np.ones(idx_step)
         kernel[0] = 0.5
@@ -310,7 +311,7 @@ class Raman_Data:
             cur_x, cur_y, step = self.step_grid(cur_x, cur_y, step)
 
         raman_slice = rp.SpectralImage(spectral_data, spectral_axis)
-
+        #TODO: Rename, this is all of the slices
         return raman_slice
     
     def get_slice500(self, pipeline):
