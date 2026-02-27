@@ -4,7 +4,6 @@ Space to test pysptools. Focusign on Hysime
 from raman_helper import *
 import pysptools
 from pysptools import material_count
-
 # load data
 path = Path("~/Code/Data_SH/SB008").expanduser()
 raman_data = Raman_Data(path, 10, 13)
@@ -13,31 +12,21 @@ raman_data = Raman_Data(path, 10, 13)
 all_slices = raman_data.get_raw_slices()
 
 preprocessing_pipeline = rp.preprocessing.Pipeline([
-    rp.preprocessing.despike.WhitakerHayes(),
-    rp.preprocessing.denoise.Whittaker(),
-    rp.preprocessing.baseline.ASPLS(),
-    rp.preprocessing.normalise.MinMax(),
     rp.preprocessing.misc.Cropper(region=(200, 1200))
 ])
 
-all_slices = preprocessing_pipeline.apply(all_slices)
+#all_slices = preprocessing_pipeline.apply(all_slices)
 
 # get the spectral data and axis
 M = all_slices.spectral_data
 spectral_data = all_slices.spectral_data
 spectral_axis = all_slices.spectral_axis
 
-hysime = material_count.HySime()
-
-
-kf, Ek = hysime.count(M)
-print(kf)
-"""
 hfc = material_count.HfcVd()
 M_scaled = (spectral_data - spectral_data.min()) / (spectral_data.max() - spectral_data.min())
 vd = hfc.count(M, noise_whitening=True)
 print(f"Signal Subspace dimension: {vd}")
-"""
+
 
 """
 nfindr = rp.analysis.unmix.NFINDR(n_endmembers=hysime.kf, abundance_method='fcls')
