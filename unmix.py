@@ -6,7 +6,7 @@ import matplotlib.gridspec as gridspec
 path = Path("~/Code/Data_SH/SB008").expanduser()
 raman_data = Raman_Data(path, 10, 13)
 
-cell_layer = raman_data.get_raw_slices()
+cell_layer = raman_data.get_raw_hsi_cube()
 
 preprocessing_pipeline = rp.preprocessing.Pipeline([
     rp.preprocessing.misc.Cropper(region=(150, 1200))

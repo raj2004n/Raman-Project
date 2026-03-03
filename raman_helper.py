@@ -189,17 +189,14 @@ class Raman_Data:
 
         return area_by_region, shift_by_region, spectra_by_region, original_spectra_by_region
 
-    def get_area_range(self, pipeline, rolling_window, spectra_start, spectra_end):
+    def get_hsi_cube(self, pipeline, rolling_window, spectra_start, spectra_end):
         """
         Method to find the area under the curve by regions.
         
         Returns:
-        area_by_region - integral of region, stored as: list, shape=(x, y, len(spectra)) 
-        shift_by_region - raman shift stored as dictionary: {region : spectra of region} (same for all pixels)
-        spectra_by_region - preprocessed spectra of region, stored as: { pixel, region : spectra of pixel and region}
-        original_spectra_by_region - original spectra of region, stored as: { pixel, region : spectra of pixel and region}
-
-        original_spectra_by_region was added to compare with preprocessed data
+        area_cube - holds integrals of each possible rolling window region, stored as: list, shape=(x, y, band length) 
+        spectra_of_pixel - holds spectra of each pixel, stored as: list, shape=(number of pixels, band length)
+        pixel_map - holds positions of pixels
 
         :param pipeline: pipeline to use. Currently using predefined pipelines from RamanSPy library.
         :param regions:
@@ -237,15 +234,14 @@ class Raman_Data:
             idx_step = int(rolling_window // mean_step)
         else:# range is less than the mean step
             idx_step = 1 # min step
-        
 
         kernel = np.ones(idx_step)
         kernel[0] = 0.5
         kernel[-1] = 0.5
         kernel = kernel * mean_step
 
-        area_by_region = np.zeros(shape=(self.x, self.y, len(cropped_raman_shifts) - idx_step + 1))
-        spectra_by_pixel = np.zeros(shape=(self.x * self.y + 1, len(cropped_raman_shifts)))
+        area_cube = np.zeros(shape=(self.x, self.y, len(cropped_raman_shifts) - idx_step + 1))
+        spectra_of_pixel = np.zeros(shape=(self.x * self.y + 1, len(cropped_raman_shifts)))
         pixel_map = np.zeros(shape=(self.x, self.y), dtype=int)
         
         # position of grid 1 at bottom-left corner
@@ -265,11 +261,11 @@ class Raman_Data:
 
             areas = convolve(preprocessed_data, kernel, mode='valid')
 
-            area_by_region[cur_x, cur_y, :] = areas
+            area_cube[cur_x, cur_y, :] = areas
 
             # add spectra to pixel
-            spectra_by_pixel[pixel] = preprocessed_data
-
+            spectra_of_pixel[pixel] = preprocessed_data
+            # assign pixel number to current grid position
             pixel_map[cur_x, cur_y] = pixel
 
             # step
@@ -277,16 +273,9 @@ class Raman_Data:
             # move to next pixel
             pixel += 1
         
-        return area_by_region, spectra_by_pixel, cropped_raman_shifts, idx_step, pixel_map
+        return area_cube, spectra_of_pixel, cropped_raman_shifts, idx_step, pixel_map
 
-    def get_raw_slices(self):
-        """
-        Method to get all the slices of the Raman Image. 
-        
-        By 'slice' I mean the Raman image for that Raman Shift value.
-        
-        :param pipeline: ...
-        """
+    def get_raw_hsi_cube(self):
         # get files
         files = self.get_files()
 
@@ -310,9 +299,9 @@ class Raman_Data:
             # step
             cur_x, cur_y, step = self.step_grid(cur_x, cur_y, step)
 
-        raman_slice = rp.SpectralImage(spectral_data, spectral_axis)
-        #TODO: Rename, this is all of the slices
-        return raman_slice
+        hsi_cube = rp.SpectralImage(spectral_data, spectral_axis)
+
+        return hsi_cube
     
     def get_slice500(self, pipeline):
         """

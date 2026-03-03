@@ -9,7 +9,7 @@ path = Path("~/Code/Data_SH/SB008").expanduser()
 raman_data = Raman_Data(path, 10, 13)
 
 # raman slice containing 
-all_slices = raman_data.get_raw_slices()
+all_slices = raman_data.get_raw_hsi_cube()
 
 preprocessing_pipeline = rp.preprocessing.Pipeline([
     rp.preprocessing.misc.Cropper(region=(200, 1200))

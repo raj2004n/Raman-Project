@@ -8,8 +8,8 @@ import kneed
 class Analysis:
     def __init__(self, hsi_cube):
         self.hsi_cube = hsi_cube
-        self.all_ns = self.get_predicted_ns()
-        self.predicted_n = max(self.all_ns)
+        self.ns = self.get_predicted_ns()
+        self.predicted_n = max(self.ns)
         self.confidence = self.determine_confidence()
         
     def n_by_pca(self):
@@ -55,13 +55,18 @@ class Analysis:
         X = (X - X.min()) / (X.max() - X.min())
 
         hfcvd = material_count.HfcVd()
-        n_vd = hfcvd.count(X, far=[1e-5], noise_whitening=True)
+        ns_vd = hfcvd.count(X, far=[1e-4, 1e-5, 1e-6], noise_whitening=True)
         
-        return n_vd[0]
+        return ns_vd
     
     def get_predicted_ns(self):
         n_85, n_elbow = self.n_by_pca()
-        n_vd = self.n_by_vd()
+        ns_vd = self.n_by_vd()
+
+        # add to docs why i choose this certain range of false alarm rates
+        # pick the n_vd that is the closest to the mean of pcas
+
+        # then pick the max out of them
         return [n_85, n_elbow, n_vd]
 
     def determine_confidence(self):
@@ -73,7 +78,7 @@ class Analysis:
         - 1 two predictions match
         - 0 no prediction match
         """
-        p1, p2, p3 = self.all_ns
+        p1, p2, p3 = self.ns
 
         if p1 == p2 and p2 == p3: # all predictions agreed
             return 'High'
@@ -81,18 +86,17 @@ class Analysis:
         elif p1 == p2 or p1 == p3 or p2 == p3: # two predictions agreed
             return 'Good'
         
-        #TODO: This should at least account difference
         else: # none agreed
-            return 'None'
+            return 'Low'
 
 def main():
     path = Path("~/Code/Data_SH/SB008").expanduser()
     raman_data = Raman_Data(path, 10, 13)
 
-    hsi_cube = raman_data.get_raw_slices()
+    hsi_cube = raman_data.get_raw_hsi_cube()
 
     data_analysis = Analysis(hsi_cube)
-    p1, p2, p3 = data_analysis.all_ns
+    p1, p2, p3 = data_analysis.ns
     confidence = data_analysis.confidence
     print(f"Prediction: {p1, p2, p3}. Final Prediction: {data_analysis.predicted_n} with {data_analysis.confidence} Confidence.")
 
