@@ -56,7 +56,6 @@ def CNN_model1(num_classes, leaky_alpha=0.1, dropout_rate=0.5):
     
     return model
 
-
 def CNN_model(num_classes):
     inputs = Input(shape=(913,1))
     

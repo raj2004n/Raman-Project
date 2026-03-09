@@ -4,9 +4,11 @@ import ramanspy as rp
 from collections import defaultdict
 from scipy.interpolate import interp1d
 from sklearn.preprocessing import LabelEncoder
+import keras
+from keras.utils import to_categorical
 
 def get_data():
-    path = os.path.expanduser('~/Code/Data_SH/unrated_unoriented')
+    path = os.path.expanduser('~/Code/Data_SH/excellent_unoriented')
     # returns spectral container, contextual data
     return rp.datasets.rruff(path, download=False)
 
@@ -54,7 +56,9 @@ def augment_shift(spectrum):
 
 def augment_noise(spectrum):
     intensity = spectrum[:, 0].copy()
+    #noise = np.random.normal(0, 0.05 * np.abs(intensity))
     noise = np.random.normal(0, 0.05 * np.abs(intensity))
+
     # clip to stay bounded between 0 and inf
     intensity = np.clip(intensity + noise, 0, None)
     # normalise
@@ -80,7 +84,7 @@ def augment_linear_combinations(spectra_for_class, n_combinations):
     
     return augmented
 
-def build_augmented_dataset(x_train, y_train_labels, n_shift, n_noise, n_combinations):
+def build_augmented_dataset(x_train, y_train_labels, n_combination):
     augmented_x = []
     augmented_y = []
 
@@ -91,25 +95,10 @@ def build_augmented_dataset(x_train, y_train_labels, n_shift, n_noise, n_combina
         if label not in class_spectra:
             class_spectra[label] = []
         class_spectra[label].append(spectrum)
-    #TODO: admit mistake that augmentation was not fully correct, try to augment with n_s, n_n = 1, 1
-    for label, spectra_list in class_spectra.items():
-        for spectrum in spectra_list:
-            # add orginal
-            augmented_x.append(spectrum)
-            augmented_y.append(label)
 
-            # augment by shift
-            for _ in range(n_shift):
-                augmented_x.append(augment_shift(spectrum))
-                augmented_y.append(label)
-
-            # augment by noise
-            for _ in range(n_noise):
-                augmented_x.append(augment_noise(spectrum))
-                augmented_y.append(label)
-            
+    for label, spectra_list in class_spectra.items():            
         # augment by linear combinations
-        combos = augment_linear_combinations(spectra_list, n_combinations)
+        combos = augment_linear_combinations(spectra_list, n_combination)
         for combo in combos:
             augmented_x.append(combo)
             augmented_y.append(label)
@@ -134,3 +123,55 @@ def leave_one_out_split(y_data):
             train_index.extend([i for i in indices if i != test_pick])
     
     return np.array(train_index), np.array(test_index)
+
+class DataGenerator(keras.utils.Sequence):
+    def __init__(self, x, y, num_classes, batch_size, shuffle=True, augment=True):
+        self.x = x
+        self.y = y
+        self.num_classes = num_classes
+        self.batch_size = batch_size
+        self.shuffle = shuffle
+        self.augment = augment
+        self.on_epoch_end()
+
+        # hard coded
+        self.dim = [913]
+        self.n_channels = 1 # only intensity
+
+    def __len__(self):
+        'Number of batches per epoch'
+        # this does not make the number of ephocs will depend augmented data
+        return int(np.floor(len(self.x) / self.batch_size))
+
+    def __getitem__(self, index):
+        'Generate one batch'
+        # indexes of the batch
+        indexes = self.indexes[index*self.batch_size:(index+1)*self.batch_size]
+        # get one batch of data
+        x_batch, y_batch = self.__data_generation(indexes)
+        return x_batch, y_batch
+    
+    def on_epoch_end(self):
+        'Updates indexes after each epoch'
+        self.indexes = np.arange(len(self.x))
+        if self.shuffle:
+            np.random.shuffle(self.indexes)
+
+    def __data_generation(self, indexes):
+        'Generates data containing batch_size samples'
+        # Initialization
+        x_batch = np.empty((self.batch_size, *self.dim, self.n_channels))
+        y_batch = np.empty((self.batch_size), dtype=int)
+
+        for i, index in enumerate(indexes):
+            spectrum = self.x[index].copy()
+
+            # augment spectrum with shift then noise
+            if self.augment:
+                spectrum = augment_shift(spectrum)
+                spectrum = augment_noise(spectrum)
+
+            x_batch[i] = spectrum
+            y_batch[i] = self.y[index]
+
+        return x_batch, to_categorical(y_batch, num_classes=self.num_classes)
