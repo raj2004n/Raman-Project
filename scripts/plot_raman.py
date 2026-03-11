@@ -29,8 +29,6 @@ def prompt_args():
         kwargs = prompt_heatmap_args()
     elif mode == "unmixing":
         kwargs = prompt_unmixing_args()
-    elif mode == "clustering":
-        kwargs = prompt_unclustering_args()
 
     return path, x, y, mode, kwargs
 
