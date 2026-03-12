@@ -14,106 +14,41 @@ def apply_intensity_mask(data_2d, i_min, i_max):
     rgba[outside] = np.array([0.5, 0.5, 0.5, 1.0])
     return rgba
 
-def _make_update(fig, ax_spectrum, image, pixel_spectrum,
-                lower_limit_line, upper_limit_line,
-                rolling_window, text_box, intensity_range,
-                area_by_region, spectra_by_pixel,
-                raman_shift_arr, idx_step, cbar, scalar_mappable):
-
-    def update(_val):
-        index = int(rolling_window.val)
-        try:
-            pixel = int(text_box.text)
-        except (ValueError, KeyError):
-            return
-
-        # current intensity clip range
-        i_min, i_max = intensity_range.val
-
-        # mask data for current slice
-        image.set_data(apply_intensity_mask(area_by_region[:, :, index], i_min, i_max))
-
-        # update cbar ticks
-        scalar_mappable.set_clim(i_min, i_max)
-        cbar.set_ticks(np.linspace(i_min, i_max, 5))
-        cbar.update_normal(scalar_mappable)
-
-        pixel_spectrum.set_ydata(spectra_by_pixel[pixel])
-
-        x_start = raman_shift_arr[index]
-        x_end = raman_shift_arr[index + idx_step - 1]
-        lower_limit_line.set_xdata([x_start, x_start])
-        upper_limit_line.set_xdata([x_end, x_end])
-        rolling_window.valtext.set_text(f"{x_start:.0f}-{x_end:.0f}")
-
-        ax_spectrum.relim()
-        ax_spectrum.autoscale_view()
-        fig.canvas.draw_idle()
-
-    return update
-
-def _make_on_hover(fig, ax_image, hover_text, pixel_map, x, y):
-
-    def on_hover(event):
-        if event.inaxes == ax_image:
-            col = np.clip(int(event.xdata + 0.5), 0, y - 1)
-            row = np.clip(int(event.ydata + 0.5), 0, x - 1)
-            hover_text.set_text(f"Pixel {pixel_map[row, col]}")
-        else:
-            hover_text.set_text("")
-        fig.canvas.draw_idle()
-
-    return on_hover
-
-def _make_on_click(fig, ax_image, ax_spectra,
-                  pixel_specra, text_box, spectra_by_pixel,
-                  pixel_map, x, y):
-
-    def on_click(event):
-        if event.inaxes != ax_image or not event.dblclick:
-            return
-
-        col   = np.clip(int(event.xdata + 0.5), 0, y - 1)
-        row   = np.clip(int(event.ydata + 0.5), 0, x - 1)
-        pixel = pixel_map[row, col]
-
-        text_box.set_val(str(pixel)) # also fires on_submit → update()
-
-        pixel_specra.set_ydata(spectra_by_pixel[pixel])
-        ax_spectra.relim()
-        ax_spectra.autoscale_view()
-        fig.canvas.draw_idle()
-
-    return on_click
-
 def show_hsi_viewer(area_cube, spectrum_of_pixel, raman_shift, idx_step, pixel_map, x, y):
-    fig, (ax_image, ax_spectrum) = plt.subplots(
-        2, 1, figsize=(8, 20), squeeze=True, 
-        gridspec_kw={"height_ratios": [5, 2]}
-        )
-    fig.subplots_adjust(bottom=0.20)
+    fig, (ax_image, ax_spectrum, ax_spectrum_log) = plt.subplots(
+        3, 1, figsize=(10, 13), squeeze=True,
+        gridspec_kw={"height_ratios": [4, 2, 2]}
+    )
+    fig.subplots_adjust(left=0.12, right=0.88, top=0.95, bottom=0.18, hspace=0.45)
 
+    # axes for widgets
+    ax_slider = fig.add_axes([0.12, 0.10, 0.55, 0.02])
+    ax_box = fig.add_axes([0.78, 0.10, 0.10, 0.02])
+    ax_intensity_range = fig.add_axes([0.12, 0.05, 0.72, 0.02])
     ax_image.set_title("Raman Image")
+
     ax_image.set_axis_off()
     ax_spectrum.set_title("Intensity Spectra")
     ax_spectrum.set_xlabel(r"Raman Shift cm$^{-1}$")
     ax_spectrum.set_ylabel("Intensity")
+    ax_spectrum_log.set_title("Intensity Spectra (ln scale)")
+    ax_spectrum_log.set_xlabel(r"Raman Shift cm$^{-1}$")
+    ax_spectrum_log.set_ylabel("ln(Intensity)")
 
-    # axes for widgets
-    ax_slider = fig.add_axes([0.15, 0.055, 0.55, 0.020])
-    ax_box = fig.add_axes([0.78, 0.055, 0.10, 0.020])
-    ax_intensity_range = fig.add_axes([0.15, 0.020, 0.72, 0.020])
-
-    # colourbar range from full data
+    # colourbar range from full data — log scaled
     v_min, v_max = np.min(area_cube), np.max(area_cube)
+    log_v_min = np.log1p(max(v_min, 0))
+    log_v_max = np.log1p(v_max)
 
-    # initial heatmap and spectra line
+    # initial heatmap and spectra lines
     image = ax_image.imshow(
         apply_intensity_mask(area_cube[:, :, 0], v_min, v_max),
-        aspect="auto", origin="upper"
+        aspect="equal", origin="upper"
     )
-    # first spectrum of pixel one
-    (pixel_spectrum,) = ax_spectrum.plot(raman_shift, spectrum_of_pixel[pixel_map[0, 0]])
+
+    first_spectrum = spectrum_of_pixel[pixel_map[0, 0]]
+    (pixel_spectrum,)     = ax_spectrum.plot(raman_shift, first_spectrum)
+    (pixel_spectrum_log,) = ax_spectrum_log.plot(raman_shift, np.log1p(np.maximum(first_spectrum, 0)))
 
     # detached ScalarMappable drives the colorbar independently of the RGBA image
     scalar_mappable = cm.ScalarMappable(norm=Normalize(vmin=v_min, vmax=v_max), cmap="viridis")
@@ -124,7 +59,7 @@ def show_hsi_viewer(area_cube, spectrum_of_pixel, raman_shift, idx_step, pixel_m
     raman_shift_arr = np.array(raman_shift)
     indices = np.arange(area_cube.shape[-1])
 
-    # widgets
+    # widgets — intensity range uses log scale
     rolling_window = Slider(
         ax=ax_slider, label="Raman Shift",
         valmin=0, valmax=indices[-1],
@@ -133,17 +68,19 @@ def show_hsi_viewer(area_cube, spectrum_of_pixel, raman_shift, idx_step, pixel_m
     rolling_window.valtext.set_text(str(raman_shift[0]))
 
     intensity_range = RangeSlider(
-        ax=ax_intensity_range, label="Intensity",
-        valmin=v_min, valmax=v_max,
-        valinit=(v_min, v_max)
+        ax=ax_intensity_range, label="ln(Intensity)",
+        valmin=log_v_min, valmax=log_v_max,
+        valinit=(log_v_min, log_v_max)
     )
 
     text_box = TextBox(ax_box, "Pixel:", textalignment="center")
     text_box.set_val(str(1))
 
     # lines on spectrum indicating region rolling window being viewed on image
-    lower_limit_line = ax_spectrum.axvline(raman_shift_arr[0], color="red", linestyle="--", alpha=0.7)
-    upper_limit_line = ax_spectrum.axvline(raman_shift_arr[idx_step], color="red", linestyle="--", alpha=0.7)
+    lower_limit_line     = ax_spectrum.axvline(raman_shift_arr[0], color="red", linestyle="--", alpha=0.7)
+    upper_limit_line     = ax_spectrum.axvline(raman_shift_arr[idx_step], color="red", linestyle="--", alpha=0.7)
+    lower_limit_line_log = ax_spectrum_log.axvline(raman_shift_arr[0], color="red", linestyle="--", alpha=0.7)
+    upper_limit_line_log = ax_spectrum_log.axvline(raman_shift_arr[idx_step], color="red", linestyle="--", alpha=0.7)
 
     # pixel label shown on hover
     hover_text = ax_image.text(
@@ -152,20 +89,66 @@ def show_hsi_viewer(area_cube, spectrum_of_pixel, raman_shift, idx_step, pixel_m
         bbox=dict(boxstyle="round,pad=0.2", facecolor="black", alpha=0.5),
     )
 
-    # build callbacks
-    update = _make_update(
-        fig, ax_spectrum, image, pixel_spectrum,
-        lower_limit_line, upper_limit_line,
-        rolling_window, text_box, intensity_range,
-        area_cube, spectrum_of_pixel,
-        raman_shift_arr, idx_step, cbar, scalar_mappable,
-    )
-    on_hover = _make_on_hover(fig, ax_image, hover_text, pixel_map, x, y)
-    on_click = _make_on_click(
-        fig, ax_image, ax_spectrum,
-        pixel_spectrum, text_box, spectrum_of_pixel,
-        pixel_map, x, y
-    )
+    def update(_val):
+        index = int(rolling_window.val)
+        try:
+            pixel = int(text_box.text)
+        except (ValueError, KeyError):
+            return
+
+        # intensity range is in log space — convert back for mask
+        log_i_min, log_i_max = intensity_range.val
+        i_min = np.expm1(log_i_min)
+        i_max = np.expm1(log_i_max)
+
+        image.set_data(apply_intensity_mask(area_cube[:, :, index], i_min, i_max))
+
+        scalar_mappable.set_clim(i_min, i_max)
+        cbar.set_ticks(np.linspace(i_min, i_max, 5))
+        cbar.update_normal(scalar_mappable)
+
+        spec = spectrum_of_pixel[pixel]
+        pixel_spectrum.set_ydata(spec)
+        pixel_spectrum_log.set_ydata(np.log1p(np.maximum(spec, 0)))
+
+        x_start = raman_shift_arr[index]
+        x_end   = raman_shift_arr[index + idx_step - 1]
+        for line in [lower_limit_line, lower_limit_line_log]:
+            line.set_xdata([x_start, x_start])
+        for line in [upper_limit_line, upper_limit_line_log]:
+            line.set_xdata([x_end, x_end])
+        rolling_window.valtext.set_text(f"{x_start:.0f}-{x_end:.0f}")
+
+        ax_spectrum.relim()
+        ax_spectrum.autoscale_view()
+        ax_spectrum_log.relim()
+        ax_spectrum_log.autoscale_view()
+        fig.canvas.draw_idle()
+
+    def on_hover(event):
+        if event.inaxes == ax_image:
+            col = np.clip(int(event.xdata + 0.5), 0, y - 1)
+            row = np.clip(int(event.ydata + 0.5), 0, x - 1)
+            hover_text.set_text(f"Pixel {pixel_map[row, col]}")
+        else:
+            hover_text.set_text("")
+        fig.canvas.draw_idle()
+
+    def on_click(event):
+        if event.inaxes != ax_image or not event.dblclick:
+            return
+        col   = np.clip(int(event.xdata + 0.5), 0, y - 1)
+        row   = np.clip(int(event.ydata + 0.5), 0, x - 1)
+        pixel = pixel_map[row, col]
+        text_box.set_val(str(pixel))
+        spec = spectrum_of_pixel[pixel]
+        pixel_spectrum.set_ydata(spec)
+        pixel_spectrum_log.set_ydata(np.log1p(np.maximum(spec, 0)))
+        ax_spectrum.relim()
+        ax_spectrum.autoscale_view()
+        ax_spectrum_log.relim()
+        ax_spectrum_log.autoscale_view()
+        fig.canvas.draw_idle()
 
     # wire up callbacks
     text_box.on_submit(update)
