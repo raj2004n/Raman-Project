@@ -47,7 +47,7 @@ x_min, x_max = 313.3, 1028.4
 x_train = standardise_data(spectra_train, target_length=input_size, x_min=x_min, x_max=x_max)
 x_test = standardise_data(spectra_test, target_length=input_size, x_min=x_min, x_max=x_max)
 
-x_all, y_all_labels = build_augmented_dataset(x_train, y_train_labels, 20, 20, 20)
+x_all, y_all_labels = build_augmented_dataset(x_train, y_train_labels, 1, 1, 1)
 
 """
 # augment by summing possible linear combinations
