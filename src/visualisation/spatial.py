@@ -6,19 +6,30 @@ from matplotlib.colors import Normalize
 from matplotlib.widgets import Slider, TextBox, RangeSlider
 from src.analysis.endmember_estimator import estimate_endmembers
 
-def apply_intensity_mask(data_2d, i_min, i_max):
+def apply_intensity_mask(image, i_min, i_max):
+    """Applies intensity mask and greys out values outside the range.
+
+    Args:
+        image (_type_): Image 
+        i_min (_type_): Minimum intensity value
+        i_max (_type_): Maximum intensity value
+
+    Returns:
+        _type_: Masked image.
+    """
     cmap = plt.get_cmap("viridis")
     norm = Normalize(vmin=i_min, vmax=i_max, clip=True)
-    rgba = cmap(norm(data_2d))
-    outside = (data_2d < i_min) | (data_2d > i_max) # mask pixels out the intensity range to grey
+    rgba = cmap(norm(image))
+
+    # mask pixels out the intensity range to grey
+    outside = (image < i_min) | (image > i_max)
     rgba[outside] = np.array([0.5, 0.5, 0.5, 1.0])
     return rgba
 
-def show_hsi_viewer(area_cube, spectrum_of_pixel, raman_shift, idx_step, pixel_map, x, y):
-    fig, (ax_image, ax_spectrum, ax_spectrum_log) = plt.subplots(
-        3, 1, figsize=(10, 13), squeeze=True,
-        gridspec_kw={"height_ratios": [4, 2, 2]}
-    )
+#TODO: better name than area cube come on
+#TODO: option to use ln scaler, or no scaler
+def show_hsi_viewer(area_cube, spectra_list, raman_shift, idx_step, pixel_map, x, y):
+    fig, (ax_image, ax_spectrum, ax_spectrum_log) = plt.subplots(3, 1, figsize=(10, 13), squeeze=True, gridspec_kw={"height_ratios": [4, 2, 2]})
     fig.subplots_adjust(left=0.12, right=0.88, top=0.95, bottom=0.18, hspace=0.45)
 
     # axes for widgets
@@ -36,30 +47,36 @@ def show_hsi_viewer(area_cube, spectrum_of_pixel, raman_shift, idx_step, pixel_m
     ax_spectrum_log.set_ylabel("ln(Intensity)")
 
     # colourbar range from full data — log scaled
-    v_min, v_max = np.min(area_cube), np.max(area_cube)
-    log_v_min = np.log1p(max(v_min, 0))
-    log_v_max = np.log1p(v_max)
+    i_min, i_max = np.min(area_cube), np.max(area_cube)
 
-    # initial heatmap and spectra lines
-    image = ax_image.imshow(
-        apply_intensity_mask(area_cube[:, :, 0], v_min, v_max),
-        aspect="equal", origin="upper"
-    )
+    correction = abs(min(i_min, 0))
+    if correction > 0:
+        print(f"Intensity correction applied: +{correction:.4f} to shift all values positive")
+    
+    area_cube_corrected = area_cube + correction + 1e-10 # to aviod ln(0)
+    i_min_corrected = np.min(area_cube_corrected)
+    i_max_corrected = np.max(area_cube_corrected)
 
-    first_spectrum = spectrum_of_pixel[pixel_map[0, 0]]
-    (pixel_spectrum,)     = ax_spectrum.plot(raman_shift, first_spectrum)
-    (pixel_spectrum_log,) = ax_spectrum_log.plot(raman_shift, np.log1p(np.maximum(first_spectrum, 0)))
+    log_v_min = np.log(i_min_corrected)
+    log_v_max = np.log(i_max_corrected)
+
+    # initial heatmap and spectrums
+    image                   = ax_image.imshow(apply_intensity_mask(area_cube[:, :, 0], i_min, i_max), aspect="equal", origin="upper")
+    first_spectrum          = spectra_list[pixel_map[0, 0]]
+    (pixel_spectrum,)       = ax_spectrum.plot(raman_shift, first_spectrum)
+    (pixel_spectrum_log,)   = ax_spectrum_log.plot(raman_shift, np.log(first_spectrum + correction))
 
     # detached ScalarMappable drives the colorbar independently of the RGBA image
-    scalar_mappable = cm.ScalarMappable(norm=Normalize(vmin=v_min, vmax=v_max), cmap="viridis")
+    scalar_mappable = cm.ScalarMappable(norm=Normalize(i_min, i_max), cmap="viridis")    
     scalar_mappable.set_array([])
+
     cbar = fig.colorbar(scalar_mappable, ax=ax_image)
-    cbar.set_ticks(np.linspace(v_min, v_max, 5))
+    cbar.set_ticks(np.linspace(i_min, i_max, 5))
 
     raman_shift_arr = np.array(raman_shift)
     indices = np.arange(area_cube.shape[-1])
 
-    # widgets — intensity range uses log scale
+    # widgets
     rolling_window = Slider(
         ax=ax_slider, label="Raman Shift",
         valmin=0, valmax=indices[-1],
@@ -74,13 +91,13 @@ def show_hsi_viewer(area_cube, spectrum_of_pixel, raman_shift, idx_step, pixel_m
     )
 
     text_box = TextBox(ax_box, "Pixel:", textalignment="center")
-    text_box.set_val(str(1))
+    text_box.set_val(str(130))
 
     # lines on spectrum indicating region rolling window being viewed on image
-    lower_limit_line     = ax_spectrum.axvline(raman_shift_arr[0], color="red", linestyle="--", alpha=0.7)
-    upper_limit_line     = ax_spectrum.axvline(raman_shift_arr[idx_step], color="red", linestyle="--", alpha=0.7)
-    lower_limit_line_log = ax_spectrum_log.axvline(raman_shift_arr[0], color="red", linestyle="--", alpha=0.7)
-    upper_limit_line_log = ax_spectrum_log.axvline(raman_shift_arr[idx_step], color="red", linestyle="--", alpha=0.7)
+    lower_limit_line        = ax_spectrum.axvline(raman_shift_arr[0], color="red", linestyle="--", alpha=0.7)
+    upper_limit_line        = ax_spectrum.axvline(raman_shift_arr[idx_step], color="red", linestyle="--", alpha=0.7)
+    lower_limit_line_log    = ax_spectrum_log.axvline(raman_shift_arr[0], color="red", linestyle="--", alpha=0.7)
+    upper_limit_line_log    = ax_spectrum_log.axvline(raman_shift_arr[idx_step], color="red", linestyle="--", alpha=0.7)
 
     # pixel label shown on hover
     hover_text = ax_image.text(
@@ -96,23 +113,25 @@ def show_hsi_viewer(area_cube, spectrum_of_pixel, raman_shift, idx_step, pixel_m
         except (ValueError, KeyError):
             return
 
-        # intensity range is in log space — convert back for mask
+        # get intensity range and convert to normal scale
         log_i_min, log_i_max = intensity_range.val
-        i_min = np.expm1(log_i_min)
-        i_max = np.expm1(log_i_max)
-
+        i_min = np.exp(log_i_min) - correction  # convert back to original scale for mask
+        i_max = np.exp(log_i_max) - correction
+        
+        # update image, cbar, pixel spectrums
         image.set_data(apply_intensity_mask(area_cube[:, :, index], i_min, i_max))
 
         scalar_mappable.set_clim(i_min, i_max)
         cbar.set_ticks(np.linspace(i_min, i_max, 5))
         cbar.update_normal(scalar_mappable)
 
-        spec = spectrum_of_pixel[pixel]
-        pixel_spectrum.set_ydata(spec)
-        pixel_spectrum_log.set_ydata(np.log1p(np.maximum(spec, 0)))
+        spectrum = spectra_list[pixel]
+        pixel_spectrum.set_ydata(spectrum)
+        pixel_spectrum_log.set_ydata(np.log(spectrum + correction + 1e-10))
 
         x_start = raman_shift_arr[index]
         x_end   = raman_shift_arr[index + idx_step - 1]
+
         for line in [lower_limit_line, lower_limit_line_log]:
             line.set_xdata([x_start, x_start])
         for line in [upper_limit_line, upper_limit_line_log]:
@@ -141,9 +160,11 @@ def show_hsi_viewer(area_cube, spectrum_of_pixel, raman_shift, idx_step, pixel_m
         row   = np.clip(int(event.ydata + 0.5), 0, x - 1)
         pixel = pixel_map[row, col]
         text_box.set_val(str(pixel))
-        spec = spectrum_of_pixel[pixel]
-        pixel_spectrum.set_ydata(spec)
-        pixel_spectrum_log.set_ydata(np.log1p(np.maximum(spec, 0)))
+
+        spectrum = spectra_list[pixel]
+        pixel_spectrum.set_ydata(spectrum)
+        pixel_spectrum_log.set_ydata(np.log(spectrum + correction + 1e-10))
+
         ax_spectrum.relim()
         ax_spectrum.autoscale_view()
         ax_spectrum_log.relim()
@@ -188,7 +209,7 @@ def show_unmixing_viewer(hsi_cube, n_endmembers, start=None, end=None):
     )
     plt.show()
     
-def show_prediction_map(predicted_labels_map, predicted_top5_map, confidence_threshold=0.80, save_path=None):
+def show_prediction_map(predicted_labels_map, predicted_top5_map, confidence_threshold=0.70, save_path=None):
     length, width = predicted_labels_map.shape
 
     # build confidence map from top-1 probability
