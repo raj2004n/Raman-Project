@@ -96,7 +96,7 @@ def get_area_under_hsi_cube(path, x, y, pipeline_id, rolling_window_width, start
 
     n_bands = len(cropped_axis) - idx_step + 1 # accounting area
     area_cube = np.zeros((x, y, n_bands))
-    spectrum_of_pixel = np.zeros((x * y + 1, len(cropped_axis)))
+    spectra_list = np.zeros((x * y + 1, len(cropped_axis)))
     pixel_map = np.zeros((x, y), dtype=int) # map of pixel positions
 
     pixel = 1 # initial pixel
@@ -112,7 +112,7 @@ def get_area_under_hsi_cube(path, x, y, pipeline_id, rolling_window_width, start
         spectral_data = spectrum.spectral_data # preprocessed now
 
         # store full preprocessed spectral data for plotting later
-        spectrum_of_pixel[pixel] = spectral_data
+        spectra_list[pixel] = spectral_data
 
         # convolve with kernet to get rolling window areas
         area_cube[row, col] = convolve(spectral_data, kernel, mode='valid')
@@ -121,4 +121,4 @@ def get_area_under_hsi_cube(path, x, y, pipeline_id, rolling_window_width, start
         pixel_map[row, col] = pixel
         pixel += 1
     
-    return area_cube, spectrum_of_pixel, cropped_axis, idx_step, pixel_map
+    return area_cube, spectra_list, cropped_axis, idx_step, pixel_map
