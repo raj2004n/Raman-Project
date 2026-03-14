@@ -41,6 +41,8 @@ def build_pipeline(pipeline_id, normalisation_pixelwise=True, fingerprint=False)
         return rp.preprocessing.protocols.georgiev2023_P2(normalisation_pixelwise, fingerprint)
     elif pipeline_id == 3:
         return rp.preprocessing.protocols.georgiev2023_P3(normalisation_pixelwise, fingerprint)
+    elif pipeline_id ==4:
+        return rp.preprocessing.protocols.bergholt2016()
     else:
         raise ValueError(f"Unknown pipeline id: {pipeline_id}")
     
@@ -81,21 +83,21 @@ def get_area_under_hsi_cube(path, x, y, pipeline_id, rolling_window_width, start
     spectral_axis, _ = read_spectrum(files[0])
 
     # get cropped spectral axis
-    temp_spectrum = rp.Spectrum(np.zeros(len(spectral_axis)), spectral_axis)
-    temp_spectrum = cropper.apply(temp_spectrum)
-    cropped_axis = temp_spectrum.spectral_axis
+    ref_spectrum = rp.Spectrum(np.zeros(len(spectral_axis)), spectral_axis)
+    ref_spectrum = cropper.apply(ref_spectrum)
+    cropped_axis = ref_spectrum.spectral_axis
 
     # get number of indexes that correspond to rolling window width
     mean_step = np.mean(np.diff(cropped_axis))
     idx_step = max(1, int(rolling_window_width // mean_step))
 
     # trapezoidal kernel for area under curve using convolution
-    kernel = np.ones(idx_step) * mean_step
-    kernel[0] = 0.5 * mean_step
-    kernel[-1] = 0.5 * mean_step
+    auc_kernel = np.ones(idx_step) * mean_step
+    auc_kernel[0] = 0.5 * mean_step
+    auc_kernel[-1] = 0.5 * mean_step
 
     n_bands = len(cropped_axis) - idx_step + 1 # accounting area
-    area_cube = np.zeros((x, y, n_bands))
+    auc_cube = np.zeros((x, y, n_bands))
     spectra_list = np.zeros((x * y + 1, len(cropped_axis)))
     pixel_map = np.zeros((x, y), dtype=int) # map of pixel positions
 
@@ -115,10 +117,10 @@ def get_area_under_hsi_cube(path, x, y, pipeline_id, rolling_window_width, start
         spectra_list[pixel] = spectral_data
 
         # convolve with kernet to get rolling window areas
-        area_cube[row, col] = convolve(spectral_data, kernel, mode='valid')
+        auc_cube[row, col] = convolve(spectral_data, auc_kernel, mode='valid')
 
         # store for plotting later
         pixel_map[row, col] = pixel
         pixel += 1
     
-    return area_cube, spectra_list, cropped_axis, idx_step, pixel_map
+    return auc_cube, spectra_list, cropped_axis, idx_step, pixel_map
