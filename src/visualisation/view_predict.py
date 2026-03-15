@@ -62,7 +62,8 @@ def show_prediction_map(path, x, y, confidence_threshold=0.80, save_path=None):
         "", xy=(0, 0), xytext=(10, 10),
         textcoords="offset points",
         bbox=dict(boxstyle="round", fc="white", alpha=0.9),
-        fontsize=8
+        fontsize=8,
+        color=FG
     )
     annot.set_visible(False)
 
@@ -70,6 +71,8 @@ def show_prediction_map(path, x, y, confidence_threshold=0.80, save_path=None):
         if event.inaxes == ax:
             col = int(round(event.xdata))
             row = int(round(event.ydata))
+            mineral = masked_labels[row, col]
+            mineral_color = colors[mineral_to_int[mineral]]
             if 0 <= row < length and 0 <= col < width:
                 conf = confidence_map[row, col]
                 if conf < confidence_threshold:
@@ -81,6 +84,8 @@ def show_prediction_map(path, x, y, confidence_threshold=0.80, save_path=None):
                         lines.append(f"{rank}. {label}: {prob*100:.1f}%")
                 annot.xy = (event.xdata, event.ydata)
                 annot.set_text("\n".join(lines))
+                annot.get_bbox_patch().set_facecolor(mineral_color)
+                annot.get_bbox_patch().set_edgecolor(FG)
                 annot.set_visible(True)
             else:
                 annot.set_visible(False)
