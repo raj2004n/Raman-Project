@@ -1,9 +1,8 @@
 import numpy as np
-from numba import njit
 import matplotlib.cm as cm
 import matplotlib.pyplot as plt
 from matplotlib.colors import Normalize
-from theme import apply_theme, BG, FG, GRID, ACCENT
+from theme import *
 from matplotlib.widgets import Slider, TextBox, RangeSlider, Button
 
 def _apply_intensity_mask(image, i_min, i_max):
@@ -23,7 +22,7 @@ def _apply_intensity_mask(image, i_min, i_max):
     rgba = cmap(norm(image))
 
     outside = (image < i_min) | (image > i_max)
-    rgba[outside] = [0.15,0.15,0.18,1]
+    rgba[outside] = [0.15, 0.15, 0.18, 1]
     return rgba
 
 def show_hsi_viewer(auc_cube, spectra_list, raman_shift, idx_step, pixel_map, x, y):
@@ -43,7 +42,7 @@ def show_hsi_viewer(auc_cube, spectra_list, raman_shift, idx_step, pixel_map, x,
     ax_slider = fig.add_axes([0.09, 0.01, 0.65, 0.035])
 
     # right
-    ax_intensity_slider = fig.add_axes([0.8, 0.32, 0.035, 0.63])
+    ax_intensity_slider = fig.add_axes([0.8, 0.32, 0.03, 0.63])
     ax_button           = fig.add_axes([0.8, 0.22, 0.16, 0.06])
     ax_box              = fig.add_axes([0.8, 0.14, 0.16, 0.05])
 
@@ -59,6 +58,7 @@ def show_hsi_viewer(auc_cube, spectra_list, raman_shift, idx_step, pixel_map, x,
     i_min, i_max = np.min(auc_cube), np.max(auc_cube)
     for ax in fig.axes:
         ax.set_facecolor((1,0,0,0.05))
+
     correction = abs(min(i_min, 0))
     if correction > 0:
         print(f"Intensity correction applied: +{correction:.4f} to shift all values positive")
@@ -90,28 +90,41 @@ def show_hsi_viewer(auc_cube, spectra_list, raman_shift, idx_step, pixel_map, x,
     )
     rolling_window.label.set_color(FG)
     rolling_window.valtext.set_color(FG)
+    rolling_window.track.set_color(SLIDER_TRACK)
+    rolling_window.poly.set_color(SLIDER_ACTIVE)
     rolling_window.valtext.set_text(f"{raman_shift[0]:.0f} cm⁻¹")
-    ax_slider.set_facecolor(GRID)
+    
+    ax_slider.set_facecolor(WIDGET_PANEL)
 
     # start slider in normal scale
     intensity_slider = RangeSlider(
         ax=ax_intensity_slider, label="Intensity",
         valmin=i_min, valmax=i_max,
         valinit=(i_min, i_max),
-        orientation="vertical"
+        orientation="vertical",
     )
     intensity_slider.label.set_color(FG)
     intensity_slider.valtext.set_color(FG)
-    ax_intensity_slider.set_facecolor(GRID)
+    intensity_slider.track.set_color(SLIDER_TRACK)
+    intensity_slider.poly.set_color(SLIDER_ACTIVE)
+    ax_intensity_slider.set_facecolor(WIDGET_PANEL)
 
-    scale_button = Button(ax_button, "Switch to ln scale", color=GRID, hovercolor=BG)
+    scale_button = Button(ax_button, "Switch to ln scale", color=BUTTON_COLOR, hovercolor=BUTTON_HOVER)
     scale_button.label.set_color(FG)
     scale_button.label.set_fontsize(8)
+    ax_button.set_facecolor(WIDGET_PANEL)
 
-    text_box = TextBox(ax_box, "Pixel:", textalignment="center", color=GRID, hovercolor=GRID)
+    text_box = TextBox(
+        ax_box,
+        "Pixel:",
+        textalignment="center",
+        color=WIDGET_SURFACE,
+        hovercolor=WIDGET_EDGE
+    )
     text_box.label.set_color(FG)
     text_box.text_disp.set_color(FG)
     text_box.set_val(str(pixel_map[0, 0]))
+    ax_box.set_facecolor(WIDGET_PANEL)
 
     lower_limit_line    = ax_spectrum.axvline(raman_shift_arr[0], color="#E07B54", linestyle="--", alpha=0.7)
     upper_limit_line    = ax_spectrum.axvline(raman_shift_arr[idx_step], color="#E07B54", linestyle="--", alpha=0.7)

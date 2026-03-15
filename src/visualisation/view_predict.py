@@ -33,7 +33,7 @@ def show_prediction_map(path, x, y, confidence_threshold=0.80, save_path=None):
     n_minerals = len(unique_minerals)
     colors = [plt.get_cmap('tab20')(i / max(n_minerals - 1, 1)) for i in range(n_minerals)]
     if 'Unknown' in unique_minerals:
-        colors[-1] = (0.6, 0.6, 0.6, 1.0)
+        colors[-1] = (0.15, 0.15 , 0.18, 1)
 
     cmap = ListedColormap(colors)
 
