@@ -1,14 +1,17 @@
 import numpy as np
-from notebooks.raman_helper import *
+from raman_helper import *
 import matplotlib.pyplot as plt
 from pathlib import Path 
 import numpy as np
 import pandas as pd
 import ramanspy as rp
+import os
 
-path = Path("~/Code/Data_SH/FullCavity_20x20_2umsteps").expanduser() # store as Path object for easier manipulation
-files = list(path.glob('*.txt')) # extract .txt files and store as list
+from pathlib import Path
 
+path = Path("~/Code/Data_SH/SB008").expanduser()
+
+files = list(path.glob('*.txt'))
 if not files:
     print("No .txt files found in that directory.")
 
@@ -21,7 +24,7 @@ raman_shifts = pd.read_csv(
     usecols=[0]
     )['raman_shift'].tolist()
 
-file = files[200] # only take the first file, as we would handle in a loop
+file = files[104]
 
 intensity_arr = pd.read_csv(
         file, 
@@ -30,6 +33,12 @@ intensity_arr = pd.read_csv(
         header=None,
         usecols=[1],
         )['intensity'].tolist()
+
+spectrum = rp.Spectrum(intensity_arr, raman_shifts)
+cropper = rp.preprocessing.misc.Cropper(region=(200, 1200))
+spectrum = cropper.apply(spectrum)
+
+intensity_arr, raman_shifts = spectrum.spectral_data, spectrum.spectral_axis
 
 # denoise, not sure what i am lookng for here; how smooth given the spectra range
 denoisers = [

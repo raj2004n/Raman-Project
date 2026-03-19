@@ -7,18 +7,34 @@ from .theme import apply_theme, BG, FG, GRID, ACCENT
 from src.analysis.endmember_estimator import estimate_endmembers
 
 def show_unmixing_viewer(hsi_cube, n_endmembers, start=None, end=None):
-    apply_theme()   
-    # crop
+    apply_theme()
+    
     if start is not None or end is not None:
         cropper = rp.preprocessing.misc.Cropper(region=(start, end))
         hsi_cube = cropper.apply(hsi_cube)
+        
+    # normalise requirement from NMF
+    # pipeline for NMF
+    # comes cropped for now, later will add in here
+    pipeline_nmf = rp.preprocessing.Pipeline([
+    rp.preprocessing.despike.WhitakerHayes(),
+    rp.preprocessing.denoise.SavGol(window_length=7, polyorder=3),
+    rp.preprocessing.baseline.ASPLS(),
+    rp.preprocessing.normalise.MinMax()
+    ])
+
+    
+    hsi_cube_nmf = pipeline_nmf.append(hsi_cube)
 
     # estimate number of endmembers if requested
     if n_endmembers == -1:
         n_endmembers, confidence = estimate_endmembers(hsi_cube)
         print(f"Estimated {n_endmembers} endmembers with {confidence} confidence.")
     
-    nfindr = rp.analysis.unmix.NFINDR(n_endmembers=n_endmembers, abundance_method='fcls')
+    #nfindr = rp.analysis.unmix.VCA(n_endmembers=n_endmembers, abundance_method='fcls')
+    nfindr = rp.analysis.decompose.NMF(n_components=n_endmembers)
+
+
     abundance_maps, endmembers = nfindr.apply(hsi_cube)
     
     ax = rp.plot.spectra(

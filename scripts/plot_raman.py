@@ -53,8 +53,6 @@ HELP_TEXT = {
     [1] Georgiev et al. (2023). RamanSPy: An open-source Python package for integrative
         Raman spectroscopy data analysis. arXiv:2307.13650.
 
-  ROLLING WINDOW WIDTH: Viewing window in cm⁻¹ (e.g. 1.0).
-  START / END: Wavenumber range to plot in cm⁻¹. Press Enter to use full range.
 """,
     "unmixing": """
   END MEMBERS: Number of spectral components to unmix into.
@@ -153,18 +151,6 @@ def prompt_heatmap_args():
             break
         print("Please enter 0, 1, 2, or 3.")
 
-    print("\nRolling window width in cm⁻¹ (default: 2, or '?' for help)")
-    while True:
-        rolling_window_width = _input("> ") or "2"
-        if rolling_window_width == "?":
-            print(HELP_TEXT["heatmap"])
-            continue
-        try:
-            rolling_window_width = float(rolling_window_width)
-            break
-        except ValueError:
-            print("Please enter a number (e.g. 1 or 25.5).")
-
     print("\nStart of spectra in cm⁻¹ (press Enter to skip, or '?' for help)")
     while True:
         start = _input("> ") or None
@@ -191,7 +177,6 @@ def prompt_heatmap_args():
 
     return {
         "pipeline_id": int(pipeline_id),
-        "rolling_window_width": rolling_window_width,
         "start": start,
         "end": end,
     }
@@ -208,16 +193,6 @@ def prompt_unmixing_args():
             break
         except ValueError:
             print("Please enter an integer, or -1 to estimate automatically.")
-
-    print("\nPipeline? [0] None  [1] P1  [2] P2  [3] P3 (default: 0, or '?' for help)")
-    while True:
-        pipeline_id = _input("> ") or "0"
-        if pipeline_id == "?":
-            print(HELP_TEXT["heatmap"])
-            continue
-        if pipeline_id in ("0", "1", "2", "3"):
-            break
-        print("Please enter 0, 1, 2, or 3.")
 
     print("\nStart of spectra in cm⁻¹ (press Enter to skip, or '?' for help)")
     while True:
@@ -245,7 +220,6 @@ def prompt_unmixing_args():
 
     return {
         "end_members": end_members,
-        "pipeline_id" : int(pipeline_id),
         "start": start,
         "end": end,
     }
@@ -290,9 +264,6 @@ def main():
 
     elif mode == "unmixing":
         hsi_cube = get_raw_hsi_cube(path, x, y)
-        pipeline = build_pipeline(kwargs["pipeline_id"])
-        if pipeline is not None:
-            hsi_cube = pipeline.apply(hsi_cube)
         show_unmixing_viewer(hsi_cube, kwargs["end_members"], kwargs["start"], kwargs["end"])
 
     elif mode == "predict":
