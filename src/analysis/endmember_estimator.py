@@ -30,7 +30,7 @@ def _n_by_pca(hsi_cube):
 
     # catch any assumptions that are too high
     if n_80 > 10:
-        n_80 = n_80
+        n_80 = 1
     
     if n_elbow > 10:
         n_elbow = 1
@@ -80,21 +80,20 @@ def estimate_endmembers(hsi_cube):
 
     pipeline_pca = rp.preprocessing.Pipeline([
     rp.preprocessing.despike.WhitakerHayes(),
-    rp.preprocessing.denoise.Whittaker(),
-    rp.preprocessing.baseline.AIRPLS(),
+    rp.preprocessing.baseline.ASLS(),
     ])
 
     pipeline_hfc = rp.preprocessing.Pipeline([
-    rp.preprocessing.denoise.Whittaker(),
-    rp.preprocessing.baseline.AIRPLS(),
+    rp.preprocessing.despike.WhitakerHayes(),
+    rp.preprocessing.baseline.ASLS(),
     ])
 
     hsi_cube_pca = pipeline_pca.apply(hsi_cube)
     hsi_cube_hfc = pipeline_hfc.apply(hsi_cube)
     
     n_80, n_elbow = _n_by_pca(hsi_cube_pca)
-    ns_hfc = _n_by_hfc(hsi_cube_hfc)
-    
+    ns_hfc        = _n_by_hfc(hsi_cube_hfc)
+
     print(f"Endmember estimates — PCA 80%: {n_80}, PCA Elbow: {n_elbow}, VD: {ns_hfc}")
 
     # pick ns_hfc which is closest to mean pca
@@ -107,7 +106,7 @@ def estimate_endmembers(hsi_cube):
     if abs(n_vd - np.max(ns)) < 2:
         ns = np.append(ns, n_vd)
     else:
-        ns = np.append(ns, 0)
+        ns = np.append(ns, 1)
         print("Rejected predictions from HSI Virtual Dimensionality Measure")
         print("Reason: Estimates are too far from PCA predictions")
     

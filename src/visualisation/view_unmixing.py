@@ -6,36 +6,43 @@ import matplotlib.pyplot as plt
 from .theme import apply_theme, BG, FG, GRID, ACCENT
 from src.analysis.endmember_estimator import estimate_endmembers
 
-def show_unmixing_viewer(hsi_cube, n_endmembers, start=None, end=None):
+def show_unmixing_viewer(hsi_cube, n_components, start=None, end=None):
     apply_theme()
     
     if start is not None or end is not None:
         cropper = rp.preprocessing.misc.Cropper(region=(start, end))
         hsi_cube = cropper.apply(hsi_cube)
-        
-    # normalise requirement from NMF
-    # pipeline for NMF
-    # comes cropped for now, later will add in here
-    pipeline_nmf = rp.preprocessing.Pipeline([
-    rp.preprocessing.despike.WhitakerHayes(),
-    rp.preprocessing.denoise.SavGol(window_length=7, polyorder=3),
-    rp.preprocessing.baseline.ASPLS(),
-    rp.preprocessing.normalise.MinMax()
-    ])
-
-    
-    hsi_cube_nmf = pipeline_nmf.append(hsi_cube)
 
     # estimate number of endmembers if requested
-    if n_endmembers == -1:
-        n_endmembers, confidence = estimate_endmembers(hsi_cube)
-        print(f"Estimated {n_endmembers} endmembers with {confidence} confidence.")
+    if n_components == -1:
+        n_components, confidence = estimate_endmembers(hsi_cube)
+        print(f"Estimated {n_components} endmembers with {confidence} confidence.")
     
-    #nfindr = rp.analysis.unmix.VCA(n_endmembers=n_endmembers, abundance_method='fcls')
-    nfindr = rp.analysis.decompose.NMF(n_components=n_endmembers)
+    #nfindr = rp.analysis.unmix.VCA(n_components=n_components, abundance_method='fcls')
+    kwargs = {
+        "init"          : "nndsvda",
+        "solver"        : "cd",
+        "beta_loss"     : "frobenius",
+        "tol"           : 1e-4,
+        "max_iter"      : 10000,
+        "random_state"  : None,
+        "alpha_W"       : 0.0,
+        "alpha_H"       : "same",
+        "l1_ratio"      : 0.0,
+        "verbose"       : 0,
+        "shuffle"       : False
+    }
+    nmf = rp.analysis.decompose.NMF(n_components=n_components, **kwargs)
+    #avoid being harsh with denoise
+    # smoothing distorts potential baseline correction
+    pipeline_nmf = rp.preprocessing.Pipeline([
+        rp.preprocessing.despike.WhitakerHayes(),
+        rp.preprocessing.baseline.ASLS(),
+        rp.preprocessing.normalise.MinMax()
+    ])
+    hsi_cube_nmf = pipeline_nmf.apply(hsi_cube)
 
-
-    abundance_maps, endmembers = nfindr.apply(hsi_cube)
+    abundance_maps, endmembers = nmf.apply(hsi_cube_nmf)
     
     ax = rp.plot.spectra(
         endmembers, hsi_cube.spectral_axis,
