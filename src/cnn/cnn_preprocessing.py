@@ -86,7 +86,7 @@ def augment_shift(spectrum):
 def augment_noise(spectrum):
     intensity = spectrum[:, 0].copy()
     #noise = np.random.normal(0, 0.05 * np.abs(intensity))
-    noise = np.random.normal(0, 0.05 * np.abs(intensity))
+    noise = np.random.normal(0, 0.1 * np.abs(intensity))
 
     # clip to stay bounded between 0 and inf
     intensity = np.clip(intensity + noise, 0, None)
@@ -96,26 +96,28 @@ def augment_noise(spectrum):
     spectrum = intensity.reshape(-1, 1)
     return spectrum
 
-def augment_linear_combinations(spectra_for_class, n_combinations):
+def augment_linear_combinations(spectra_for_class):
     augmented = []
     n = len(spectra_for_class)
-    
     if n < 2:
-        return augmented # can't combine single spectrum
-    
-    for _ in range(n_combinations):
-        # random coeff that sum up to one
-        coeffs = np.random.dirichlet(np.ones(n))
+        return augmented
 
-        combined_intensity = sum(c * s[:, 0] for c, s in zip(coeffs, spectra_for_class))
-        combined_intensity /= (combined_intensity.max() + 1e-8)
-        augmented.append(combined_intensity.reshape(-1, 1))
-    
+    # all unique pairs
+    for i in range(n):
+        for j in range(i + 1, n):
+            coeff = np.random.uniform(0, 1)
+            combined_intensity = (
+                coeff * spectra_for_class[i][:, 0] +
+                (1 - coeff) * spectra_for_class[j][:, 0]
+            )
+            combined_intensity /= (combined_intensity.max() + 1e-8)
+            augmented.append(combined_intensity.reshape(-1, 1))
     return augmented
 
-def build_augmented_dataset(x_train, y_train_labels, n_shift, n_noise, n_combination):
-    original_x      = list(x_train)
-    original_y      = list(y_train_labels)
+def build_augmented_dataset(x_train, y_train_labels, n_shift, n_noise):
+
+    original_x  = list(x_train)
+    original_y  = list(y_train_labels)
     augmented_x = []
     augmented_y = []
 
@@ -142,10 +144,11 @@ def build_augmented_dataset(x_train, y_train_labels, n_shift, n_noise, n_combina
                 augmented_y.append(label)
 
         # augment by linear combinations
-        combos = augment_linear_combinations(spectra_list, n_combination)
+        combos = augment_linear_combinations(spectra_list)
         for combo in combos:
             augmented_x.append(combo)
             augmented_y.append(label)
+
     
     # originals + augmented, never augmenting augmented data
     x_all = np.array(original_x + augmented_x)

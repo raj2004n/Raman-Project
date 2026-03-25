@@ -28,13 +28,6 @@ def _n_by_pca(hsi_cube):
     kn = kneed.KneeLocator(x, ev, curve='convex', direction='decreasing')
     n_elbow = kn.elbow if kn.elbow else None
 
-    # catch any assumptions that are too high
-    if n_80 > 10:
-        n_80 = 1
-    
-    if n_elbow > 10:
-        n_elbow = 1
-
     """
     # Kaiser's method: Only keep those whose eigenvalues greater than 1.
     # In practice, principal components with eigenvales like 0.95 may still
@@ -54,7 +47,7 @@ def _n_by_hfc(hsi_cube):
     X = (X - X.min()) / (X.max() - X.min())
 
     hfcvd = material_count.HfcVd()
-    fars = [1e-2, 1e-3, 1e-4, 1e-5, 1e-6, 1e-7]
+    fars = [1e-1, 1e-2, 1e-3, 1e-4, 1e-5, 1e-6, 1e-7]
     ns_hfc = hfcvd.count(X, far=fars, noise_whitening=True)
     return ns_hfc
 
@@ -76,7 +69,7 @@ def _determine_confidence(ns):
         return 'low'
 
 
-def estimate_endmembers(hsi_cube):
+def estimate_phase_number(hsi_cube):
 
     pipeline_pca = rp.preprocessing.Pipeline([
     rp.preprocessing.despike.WhitakerHayes(),
@@ -94,26 +87,48 @@ def estimate_endmembers(hsi_cube):
     n_80, n_elbow = _n_by_pca(hsi_cube_pca)
     ns_hfc        = _n_by_hfc(hsi_cube_hfc)
 
-    print(f"Endmember estimates — PCA 80%: {n_80}, PCA Elbow: {n_elbow}, VD: {ns_hfc}")
+    # catch any assumptions that are too high
+    print("-----------------------------")
+    print(f"PCA 80% estimate: {n_80}")
+    if n_80 > 10:
+        n_80 = 1
+        print(f"Rejected PCA 80% estimate.")
+        print(f"Reason: Estimate was too high (>10).")
 
+    print("-----------------------------")
+    print(f"PCA Elbow estimate: {n_elbow}")
+    if n_elbow > 10:
+        n_elbow = 1
+        print(f"Rejected PCA elbow estimate.")
+        print(f"Reason: Estimate was too high (>10).")
+
+    print("-----------------------------")
+    print(f"NW-HFC estimates: {ns_hfc}")
     # pick ns_hfc which is closest to mean pca
     ns = np.array([n_80, n_elbow])
     mean_pca = ns.mean()
     idx = np.abs(ns_hfc - mean_pca).argmin()
-    n_vd = ns_hfc[idx]
+    n_hfc = ns_hfc[idx]
 
     # add n_vd to consideration if it is not too far from max
-    if abs(n_vd - np.max(ns)) < 2:
-        ns = np.append(ns, n_vd)
+    if abs(n_hfc - np.max(ns)) < 2:
+        ns = np.append(ns, n_hfc)
     else:
         ns = np.append(ns, 1)
-        print("Rejected predictions from HSI Virtual Dimensionality Measure")
-        print("Reason: Estimates are too far from PCA predictions")
+        print("Rejected predictions from NW-HFC.")
+        print("Reason: Estimates are too far from PCA predictions.")
     
+
     predicted_n = np.max(ns)
     confidence = _determine_confidence(ns)
 
-    print(f"Final consideration pool: {ns}")
-    print(f"Final prediction is {predicted_n} with {confidence} confidence")
+    print("-----------------------------")
+    print(f"Final estimates of phase number:")
+    print(f"PCA 80%: {n_80}")
+    print(f"PCA Elbow: {n_elbow}")
+    print(f"NWHFC: {ns_hfc}")
+    print("-----------------------------")
+    
+    print(f"Best estimate of phase number is {predicted_n} with {confidence} confidence")
 
     return predicted_n, confidence

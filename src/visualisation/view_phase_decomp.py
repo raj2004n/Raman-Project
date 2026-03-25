@@ -4,7 +4,7 @@ import ramanspy as rp
 import matplotlib.cm as cm
 import matplotlib.pyplot as plt
 from .theme import apply_theme, BG, FG, GRID, ACCENT
-from src.analysis.endmember_estimator import estimate_endmembers
+from src.analysis.phase_number_est import estimate_phase_number
 
 def show_unmixing_viewer(hsi_cube, n_components, start=None, end=None):
     apply_theme()
@@ -15,7 +15,7 @@ def show_unmixing_viewer(hsi_cube, n_components, start=None, end=None):
 
     # estimate number of endmembers if requested
     if n_components == -1:
-        n_components, confidence = estimate_endmembers(hsi_cube)
+        n_components, confidence = estimate_phase_number(hsi_cube)
         print(f"Estimated {n_components} endmembers with {confidence} confidence.")
     
     #nfindr = rp.analysis.unmix.VCA(n_components=n_components, abundance_method='fcls')
@@ -33,7 +33,7 @@ def show_unmixing_viewer(hsi_cube, n_components, start=None, end=None):
         "shuffle"       : False
     }
     nmf = rp.analysis.decompose.NMF(n_components=n_components, **kwargs)
-    #avoid being harsh with denoise
+    
     # smoothing distorts potential baseline correction
     pipeline_nmf = rp.preprocessing.Pipeline([
         rp.preprocessing.despike.WhitakerHayes(),
@@ -47,7 +47,7 @@ def show_unmixing_viewer(hsi_cube, n_components, start=None, end=None):
     ax = rp.plot.spectra(
         endmembers, hsi_cube.spectral_axis,
         plot_type="single stacked",
-        label=[f"Endmember {i + 1}" for i in range(len(endmembers))]
+        label=[f"Phase {i + 1}" for i in range(len(endmembers))]
     )
 
     magma = cm.get_cmap("magma")
@@ -69,7 +69,7 @@ def show_unmixing_viewer(hsi_cube, n_components, start=None, end=None):
         for i, (abundance_map, ax) in enumerate(zip(abundance_maps, axes)):
             rp.plot.image(
                 abundance_map,
-                title=f"Component {i + 1}",
+                title=f"Phase {i + 1}",
                 cmap=cmap,
                 ax=ax
             )
@@ -85,7 +85,7 @@ def show_unmixing_viewer(hsi_cube, n_components, start=None, end=None):
         for i, abundance_map in enumerate(abundance_maps):
             rp.plot.image(
                 abundance_map,
-                title=f"Component {i + 1}",
+                title=f"Phase {i + 1}",
                 cmap=cmap
             )
             plt.show()

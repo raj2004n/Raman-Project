@@ -12,7 +12,9 @@ from src.cnn.evaluate import *
 from collections import Counter
 
 path="~/Code/Data_SH/poor_unoriented"
-input_size = 1024
+input_size = 2000
+# hard coded for now
+x_min, x_max = 313.3, 1028.4
 
 spectra_list, metadata = load_CNN_data(path)
 
@@ -34,20 +36,17 @@ y_test_labels = y_data[test_index]
 
 y_test = to_categorical(le.transform(y_test_labels), num_classes)
 
-with open("artifacts/encoders/label_encoder_poor3.pkl", "wb") as f:
+with open("artifacts/encoders/label_encoder_ignore.pkl", "wb") as f:
     pickle.dump(le, f)
 
 spectra_train = [spectra_list[i] for i in train_index]
 spectra_test = [spectra_list[i] for i in test_index]
 
-# hard coded for now
-x_min, x_max = 313.3, 1028.4
-
 # standardise the training and testing data
 x_train = standardise_data(spectra_train, target_length=input_size, x_min=x_min, x_max=x_max)
 x_test = standardise_data(spectra_test, target_length=input_size, x_min=x_min, x_max=x_max)
 
-x_all, y_all_labels = build_augmented_dataset(x_train, y_train_labels, 1, 1, 1)
+x_all, y_all_labels = build_augmented_dataset(x_train, y_train_labels, 1, 1)
 
 """
 # augment by summing possible linear combinations
@@ -60,7 +59,7 @@ y_train_labels = np.concatenate([y_train_labels, y_combos_labels], axis=0)
 
 model = CNN_Model(num_classes, input_size)
 model.summary()
-plot_model(model, to_file='outputs/model_plot.png', show_shapes=True)
+plot_model(model, to_file='outputs/model_plot_temp.png', show_shapes=True)
 
 # create a class array of ints, since classes are labelled as string 
 classes_array = np.arange(num_classes)
@@ -89,7 +88,7 @@ val_gen = DataGenerator(
 """
 
 y_all = to_categorical(y_all_integers, num_classes)
-early_stop = EarlyStopping(monitor='val_loss', patience=20, restore_best_weights=True)
+early_stop = EarlyStopping(monitor='val_loss', patience=10, restore_best_weights=True)
 
 history = model.fit(
     x_all, y_all,
@@ -100,8 +99,8 @@ history = model.fit(
     )
 
 # save full model and wavenumber range
-model.save("artifacts/models/raman_cnn_model_poor3.keras")
-model.save_weights("artifacts/weights/test_weights_poor3.weights.h5")
-np.save("artifacts/metadata/wavenumber_range_poor3.npy", np.array([x_min, x_max]))
+model.save("artifacts/models/raman_cnn_model_ignore.keras")
+model.save_weights("artifacts/weights/test_weights_ignore.weights.h5")
+np.save("artifacts/metadata/wavenumber_range_poor_ignore.npy", np.array([x_min, x_max]))
 
 show_results(history, model, x_test, y_test)
