@@ -123,12 +123,12 @@ def estimate_phase_number(hsi_cube):
     confidence = _determine_confidence(ns)
 
     print("-----------------------------")
-    print(f"Final estimates of phase number:")
+    print(f"Final estimates of number of distinct spectra:")
     print(f"PCA 80%: {n_80}")
     print(f"PCA Elbow: {n_elbow}")
     print(f"NWHFC: {ns_hfc}")
     print("-----------------------------")
     
-    print(f"Best estimate of phase number is {predicted_n} with {confidence} confidence")
+    print(f"Best estimate of number of distinct spectra is {predicted_n} with {confidence} confidence")
 
     return predicted_n, confidence

@@ -6,19 +6,18 @@ import matplotlib.pyplot as plt
 from .theme import apply_theme, BG, FG, GRID, ACCENT
 from src.analysis.phase_number_est import estimate_phase_number
 
-def show_unmixing_viewer(hsi_cube, n_components, start=None, end=None):
+def show_spectra_ext_viewer(hsi_cube, n_components, start=None, end=None):
     apply_theme()
     
     if start is not None or end is not None:
         cropper = rp.preprocessing.misc.Cropper(region=(start, end))
         hsi_cube = cropper.apply(hsi_cube)
 
-    # estimate number of endmembers if requested
+    # estimate number of phases if requested
     if n_components == -1:
         n_components, confidence = estimate_phase_number(hsi_cube)
-        print(f"Estimated {n_components} endmembers with {confidence} confidence.")
+        print(f"Estimated {n_components} phases with {confidence} confidence.")
     
-    #nfindr = rp.analysis.unmix.VCA(n_components=n_components, abundance_method='fcls')
     kwargs = {
         "init"          : "nndsvda",
         "solver"        : "cd",
@@ -42,12 +41,12 @@ def show_unmixing_viewer(hsi_cube, n_components, start=None, end=None):
     ])
     hsi_cube_nmf = pipeline_nmf.apply(hsi_cube)
 
-    abundance_maps, endmembers = nmf.apply(hsi_cube_nmf)
+    abundance_maps, phases = nmf.apply(hsi_cube_nmf)
     
     ax = rp.plot.spectra(
-        endmembers, hsi_cube.spectral_axis,
+        phases, hsi_cube.spectral_axis,
         plot_type="single stacked",
-        label=[f"Phase {i + 1}" for i in range(len(endmembers))]
+        label=[f"Spectra {i + 1}" for i in range(len(phases))]
     )
 
     magma = cm.get_cmap("magma")
@@ -69,7 +68,7 @@ def show_unmixing_viewer(hsi_cube, n_components, start=None, end=None):
         for i, (abundance_map, ax) in enumerate(zip(abundance_maps, axes)):
             rp.plot.image(
                 abundance_map,
-                title=f"Phase {i + 1}",
+                title=f"Spectra {i + 1}",
                 cmap=cmap,
                 ax=ax
             )
@@ -85,7 +84,7 @@ def show_unmixing_viewer(hsi_cube, n_components, start=None, end=None):
         for i, abundance_map in enumerate(abundance_maps):
             rp.plot.image(
                 abundance_map,
-                title=f"Phase {i + 1}",
+                title=f"Spectra {i + 1}",
                 cmap=cmap
             )
             plt.show()

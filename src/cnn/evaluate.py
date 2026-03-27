@@ -24,5 +24,5 @@ def show_results(history, model, x_test, y_test):
     ax2.legend(loc='best')
 
     plt.tight_layout()
-    plt.savefig('training_results.png', dpi=150, bbox_inches='tight')
+    plt.savefig('training_results_final_poor2.png', dpi=150, bbox_inches='tight')
     plt.show()

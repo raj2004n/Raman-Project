@@ -29,12 +29,12 @@ print(f"Signal Subspace dimension: {vd}")
 
 """
 nfindr = rp.analysis.unmix.NFINDR(n_components=hysime.kf, abundance_method='fcls')
-abundance_maps, endmembers = nfindr.apply(all_slices)
+abundance_maps, phases = nfindr.apply(all_slices)
 
 rp.plot.spectra(
-    endmembers, all_slices.spectral_axis, 
+    phases, all_slices.spectral_axis, 
     plot_type="single stacked", 
-    label=[f"Endmember {i + 1}" for i in range(len(endmembers))]
+    label=[f"Endmember {i + 1}" for i in range(len(phases))]
     )
 plt.show()
 

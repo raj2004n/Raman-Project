@@ -36,7 +36,7 @@ y_test_labels = y_data[test_index]
 
 y_test = to_categorical(le.transform(y_test_labels), num_classes)
 
-with open("artifacts/encoders/label_encoder_ignore.pkl", "wb") as f:
+with open("artifacts/encoders/label_encoder_final_poor2.pkl", "wb") as f:
     pickle.dump(le, f)
 
 spectra_train = [spectra_list[i] for i in train_index]
@@ -59,7 +59,7 @@ y_train_labels = np.concatenate([y_train_labels, y_combos_labels], axis=0)
 
 model = CNN_Model(num_classes, input_size)
 model.summary()
-plot_model(model, to_file='outputs/model_plot_temp.png', show_shapes=True)
+plot_model(model, to_file='outputs/model_plot_final_poor2.png', show_shapes=True)
 
 # create a class array of ints, since classes are labelled as string 
 classes_array = np.arange(num_classes)
@@ -88,7 +88,7 @@ val_gen = DataGenerator(
 """
 
 y_all = to_categorical(y_all_integers, num_classes)
-early_stop = EarlyStopping(monitor='val_loss', patience=10, restore_best_weights=True)
+early_stop = EarlyStopping(monitor='val_loss', patience=20, restore_best_weights=True)
 
 history = model.fit(
     x_all, y_all,
@@ -99,8 +99,8 @@ history = model.fit(
     )
 
 # save full model and wavenumber range
-model.save("artifacts/models/raman_cnn_model_ignore.keras")
-model.save_weights("artifacts/weights/test_weights_ignore.weights.h5")
-np.save("artifacts/metadata/wavenumber_range_poor_ignore.npy", np.array([x_min, x_max]))
+model.save("artifacts/models/raman_cnn_model_final_poor2.keras")
+model.save_weights("artifacts/weights/test_final_poor2.weights.h5")
+np.save("artifacts/metadata/wavenumber_range_final_poor2.npy", np.array([x_min, x_max]))
 
 show_results(history, model, x_test, y_test)

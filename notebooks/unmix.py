@@ -15,15 +15,15 @@ preprocessing_pipeline = rp.preprocessing.Pipeline([
 preprocessed_cell_layer = preprocessing_pipeline.apply(cell_layer)
 
 #nfindr = rp.analysis.unmix.NFINDR(n_components=4, abundance_method='fcls')
-#abundance_maps, endmembers = nfindr.apply(preprocessed_cell_layer)
+#abundance_maps, phases = nfindr.apply(preprocessed_cell_layer)
 
 fippi = rp.analysis.unmix.VCA(n_components=3, abundance_method='nnls')
-abundance_maps, endmembers = fippi.apply(preprocessed_cell_layer)
+abundance_maps, phases = fippi.apply(preprocessed_cell_layer)
 
 rp.plot.spectra(
-    endmembers, preprocessed_cell_layer.spectral_axis, 
+    phases, preprocessed_cell_layer.spectral_axis, 
     plot_type="single stacked", 
-    label=[f"Endmember {i + 1}" for i in range(len(endmembers))]
+    label=[f"Endmember {i + 1}" for i in range(len(phases))]
     )
 plt.show()
 
