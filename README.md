@@ -146,7 +146,7 @@ Reconstructed from Liu et al., *Analyst*, 2017. A LeNet-variant 1D CNN:
 | PCA scree | Correctly predicted 2 distinct spectra for both test samples in the fingerprint region |
 | NMF extraction | Successfully separated diamond anvil cell background from sample signal |
 | CNN (poor unoriented) | **90.7% test accuracy**, 200 epochs, trained on NVIDIA RTX 3060 |
-| CNN (excellent oriented) | **98.1% test accuracy** — see `outputs/` for training curves |
+| CNN (excellent oriented) | **98.1% test accuracy** |
 
 ---
 
