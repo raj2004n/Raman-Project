@@ -70,7 +70,37 @@ Python 3.12 is recommended.
 
 ---
 
-## Usage
+## Interactive CLI Usage
+
+To launch the analysis framework, execute the following command from the root directory:
+
+```bash
+python3 -m scripts.plot_raman
+```
+
+### Example Session
+
+```
+Enter path, grid rows and grid columns (or '?' for help):
+e.g. ~/Code/Data_SH/SB008 10 13
+> ~/Code/Data_SH/SB008 10 13
+Found 130 .txt file(s) in /home/raj/Code/Data_SH/SB008.
+
+Select mode (or '?' for help):
+  [1] Heatmap
+  [2] Unmixing
+  [3] Predict (incomplete)
+> 1
+
+Pipeline? [0] None  [1] P1  [2] P2  [3] P3 (default: 0, or '?' for help)
+> 0
+
+Start of spectra in cm⁻¹ (press Enter to skip, or '?' for help)
+> 200
+
+End of spectra in cm⁻¹ (press Enter to skip, or '?' for help)
+> 1200
+```
 
 ### Spatial Visualiser
 
