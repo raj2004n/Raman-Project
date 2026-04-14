@@ -78,6 +78,8 @@ To launch the analysis framework, execute the following command from the root di
 python3 -m scripts.plot_raman
 ```
 
+---
+
 ### Example Session
 
 ```
@@ -100,50 +102,6 @@ Start of spectra in cm⁻¹ (press Enter to skip, or '?' for help)
 
 End of spectra in cm⁻¹ (press Enter to skip, or '?' for help)
 > 1200
-```
-
-### Spatial Visualiser
-
-Launches an interactive heatmap for exploring a Raman surface map. The rolling spectral window, intensity slider, and logarithmic scale toggle allow real-time exploration of spatial and spectral features.
-
-```python
-from src.visualisation.view_heatmap import show_heatmap_viewer
-import ramanspy as rp
-
-hsi_cube = rp.SpectralImage(data, spectral_axis)
-show_heatmap_viewer(hsi_cube)
-```
-
-### Distinct Spectra Estimation
-
-Estimates the number of spectrally distinct sources using PCA (scree and 80% variance criteria) and the noise-whitened Harsanyi-Farrand-Chang method across a range of false alarm rates.
-
-```python
-from src.analysis.phase_number_est import estimate_phase_number
-
-n_components, confidence = estimate_phase_number(hsi_cube)
-print(f"Estimated {n_components} distinct spectra ({confidence} confidence)")
-```
-
-### Spectral Extraction (NMF)
-
-Extracts distinct spectral components and displays their spatial abundance maps. The number of components can be set manually or estimated automatically.
-
-```python
-from src.visualisation.view_phase_decomp import show_spectra_ext_viewer
-
-# n_components=-1 triggers automatic estimation
-show_spectra_ext_viewer(hsi_cube, n_components=-1, start=200, end=1200)
-```
-
-### Compound Prediction (CNN)
-
-Predicts the mineral compound for a given spectrum using the trained 1D CNN. The model was trained on the RRUFF `poor_unoriented` dataset (1639 spectra, 533 classes).
-
-```python
-from src.visualisation.view_predict import show_predict_viewer
-
-show_predict_viewer(hsi_cube)
 ```
 
 ---
