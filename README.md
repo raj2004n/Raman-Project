@@ -20,19 +20,19 @@ Raman surface mapping produces large volumes of spectral data — hundreds to th
 ## Visualisations
 
 ### Interactive Spatial Analysis
-The interactive heatmap provides a method for exploring a spectral cube.
+| Sample A | Sample B |
+| :--- | :--- |
+| ![Sample A Heatmap](images/heatmap_sb.png) | ![Sample B Heatmap](images/heatmap_fc.png) |
+| *Figure 1a: Spectral distribution (Sample A)* | *Figure 1b: Spectral distribution (Sample B)* |
 
-![Spatial Visualiser UI](outputs/heatmap_sb.png)
-*Figure 1: The snapshot of the interactive heatmap showing the spectral intenstiy distribution across the sample surface.*
+### Spectral Extraction (NMF)
+| Extracted Spectra (Sample A) | Spatial Abundance (Sample A) |
+| :--- | :--- |
+| ![Spectra A](images/sb2.1.png) | ![Map A](images/sb2.2.png) |
 
-### Spectral Extraction
-NMF is used to extract spectraly distinct sources from the sample.
-
-![NMF Decomposition](outputs/sb2.1.png)
-*Figure 2: The snaphot of the extractred distinct spectra from the entire sample.*
-
-![NMF Decomposition](outputs/sb2.2.png)
-*Figure 3: The snapshot of the heatmap view of the extracted spectra.*
+| Extracted Spectra (Sample B) | Spatial Abundance (Sample B) |
+| :--- | :--- |
+| ![Spectra B](images/fc2.1.png) | ![Map B](images/fc2.2.png) |
 
 ---
 
