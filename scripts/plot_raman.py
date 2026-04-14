@@ -68,8 +68,6 @@ HELP_TEXT = {
 """,
 }
 
-#TODO: not just via SVD
-
 def _input(prompt_str=""):
     """Thin wrapper so callers can check for '?' and show help externally."""
     return input(prompt_str).strip()
