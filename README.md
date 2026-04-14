@@ -141,7 +141,7 @@ Reconstructed from Liu et al., *Analyst*, 2017. A LeNet-variant 1D CNN:
 - Trained with class-weighted categorical cross-entropy and Adam optimiser
 - Data augmentation: spectral shift, noise injection, and linear combination of same-class spectra (4.4× training set increase)
 
-**Result:** 90.7% test accuracy on 493 test spectra across 533 classes (cf. 93.3% reported by Liu et al.)
+**Result:** 90.7% test accuracy on 493 test spectra across 533 classes (cf. 93.3% reported by Liu et al.). However, the model overfitted.
 
 ---
 
